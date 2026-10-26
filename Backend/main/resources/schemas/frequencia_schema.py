@@ -56,6 +56,7 @@ class FrequenciaServoResumo(BaseModel):
 
 class FrequenciaServosResponse(BaseModel):
     message: str
+    ano: int  # a frequência é anual (reinicia em 1º de janeiro)
     data: list[FrequenciaServoResumo]
 
 class MissaoComFrequencia(BaseModel):

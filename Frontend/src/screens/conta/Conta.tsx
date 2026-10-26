@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { PERFIL_LABEL, PERFIS_ADMIN, temPerfil, trocarSenha } from "../../services/auth/auth";
 import { authStyles as styles } from "../login/Login.styles";
+import MeuResumo from "./MeuResumo";
 
 function iniciais(nome: string) {
   return nome.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join("");
@@ -94,6 +95,8 @@ export default function ContaScreen() {
           </View>
           <Text style={styles.title}>{usuario.nome}</Text>
           <Text style={styles.subtitle}>{PERFIL_LABEL[usuario.perfil] ?? usuario.perfil}</Text>
+
+          <MeuResumo />
 
           <View style={styles.card}>
             <View style={styles.cardRow}>

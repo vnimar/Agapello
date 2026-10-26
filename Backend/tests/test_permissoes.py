@@ -38,6 +38,7 @@ ROTAS = [
 
     # Contas
     ("GET", "/auth/me", None, TODOS),
+    ("GET", "/auth/me/resumo", None, TODOS),
     ("POST", "/auth/register", {}, SO_ADMIN),
     ("GET", "/usuarios/", None, SO_ADMIN),
     ("POST", "/usuarios/", {}, SO_ADMIN),

@@ -87,3 +87,24 @@ export function trocarSenha(senha_atual: string, senha_nova: string) {
     body: JSON.stringify({ senha_atual, senha_nova }),
   });
 }
+
+export type StatusFrequencia = "Presente" | "Justificada" | "Falta";
+
+/** Minha conta: frequência do ano, foguinho e pastas de quem está logado. */
+export interface MeuResumo {
+  ano: number;
+  id_servo: number | null;  // conta sem servo → resto vem vazio
+  frequencia: {
+    presente: number;
+    justificada: number;
+    falta: number;
+    percentual_presenca: number | null;  // null = nenhuma chamada no ano
+  };
+  missoes: { data: string; descricao: string; status: StatusFrequencia }[];
+  foguinho: { sequencia_atual: number; recorde: number; chama_acesa: boolean };
+  pastas: { nome: string; momento: "encontro" | "pos"; coordenador: boolean }[];
+}
+
+export function buscarMeuResumo() {
+  return apiRequest<MeuResumo>("/auth/me/resumo");
+}

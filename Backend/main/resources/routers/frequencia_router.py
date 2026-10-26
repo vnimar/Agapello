@@ -71,10 +71,15 @@ def register_frequencia(
 
 @router.get("/servos", response_model=FrequenciaServosResponse)
 def get_frequencia_by_servo():
+    # Frequência anual: reinicia em 1º de janeiro. Mesma regra do /auth/me/resumo:
+    # só missões do ano que já aconteceram e que contam frequência.
 
     try:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute("SELECT EXTRACT(YEAR FROM CURRENT_DATE)::int AS ano")
+                ano = cursor.fetchone()["ano"]
+
                 cursor.execute("""
                     SELECT
                         s.id_servo,
@@ -87,17 +92,23 @@ def get_frequencia_by_servo():
                             / NULLIF(COUNT(f.id_frequencia), 0),
                         2) AS percentual_presenca
                     FROM servo s
-                    LEFT JOIN frequencia f ON f.id_servo = s.id_servo
+                    LEFT JOIN (
+                        frequencia f
+                        JOIN missao m ON m.id_missao = f.id_missao
+                                     AND m.conta_frequencia
+                                     AND m.data <= CURRENT_DATE
+                                     AND EXTRACT(YEAR FROM m.data) = %s
+                    ) ON f.id_servo = s.id_servo
                     GROUP BY s.id_servo, s.nome
                     ORDER BY s.nome
-                """)
+                """, (ano,))
                 dados = cursor.fetchall()
 
     except Exception as e:
         logger.error(f"Erro ao buscar resumo de frequência: {e}")
         raise HTTPException(status_code=500, detail="Erro interno.")
 
-    return FrequenciaServosResponse(message="Resumo de frequência", data=dados)
+    return FrequenciaServosResponse(message="Resumo de frequência", ano=ano, data=dados)
 
 @router.get("/missoes", response_model=MissoesComFrequenciaResponse)
 def get_missoes_com_frequencia():

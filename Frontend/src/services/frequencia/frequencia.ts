@@ -35,6 +35,7 @@ export interface FrequenciaServoResumo {
 
 export interface FrequenciaServosResponse {
   message: string;
+  ano: number;  // a frequência é anual (reinicia em 1º de janeiro)
   data: FrequenciaServoResumo[];
 }
 

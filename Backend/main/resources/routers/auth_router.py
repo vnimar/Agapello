@@ -1,7 +1,9 @@
 import logging
+import psycopg2.extras
 from fastapi import APIRouter, HTTPException, Depends, Request, Response, status
 
 from ..bd.db import get_connection
+from ..schemas.servo_schema import MeuResumo, MinhaFrequencia, MeuFoguinho
 from ..schemas.auth_schema import (
     LoginRequest,
     RegisterRequest,
@@ -123,6 +125,77 @@ def config():
 @router.get("/me", response_model=UsuarioLogado)
 def me(usuario: UsuarioLogado = Depends(get_current_user)):
     return usuario
+
+
+# ── GET /auth/me/resumo ───────────────────────────────────────────────────────
+#
+# Tela Minha conta: frequência do ano (reinicia em 1º de janeiro), foguinho
+# (não zera na virada do ano) e pastas do ano de quem está logado.
+# Só missões que já aconteceram e que contam frequência, como no foguinho.
+
+@router.get("/me/resumo", response_model=MeuResumo)
+def meu_resumo(usuario: UsuarioLogado = Depends(get_current_user)):
+
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute("SELECT EXTRACT(YEAR FROM CURRENT_DATE)::int AS ano")
+                ano = cursor.fetchone()["ano"]
+
+                if usuario.id_servo is None:
+                    return MeuResumo(ano=ano)
+
+                cursor.execute("""
+                    SELECT m.data::text AS data, m.descricao, f.status
+                    FROM frequencia f
+                    JOIN missao m ON m.id_missao = f.id_missao
+                    WHERE f.id_servo = %s
+                      AND m.conta_frequencia
+                      AND m.data <= CURRENT_DATE
+                      AND EXTRACT(YEAR FROM m.data) = %s
+                    ORDER BY m.data DESC, m.id_missao DESC
+                """, (usuario.id_servo, ano))
+                missoes = cursor.fetchall()
+
+                cursor.execute("""
+                    SELECT sequencia_atual, recorde, chama_acesa
+                    FROM vw_sequencia_servo
+                    WHERE id_servo = %s
+                """, (usuario.id_servo,))
+                foguinho = cursor.fetchone()
+
+                cursor.execute("""
+                    SELECT p.nome, sp.momento, sp.coordenador
+                    FROM servo_pasta sp
+                    JOIN pasta p ON p.id_pasta = sp.id_pasta
+                    WHERE sp.id_servo = %s AND sp.ano = %s
+                    ORDER BY sp.momento, p.nome
+                """, (usuario.id_servo, ano))
+                pastas = cursor.fetchall()
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar o resumo do usuário {usuario.id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    contagem = {s: sum(1 for m in missoes if m["status"] == s) for s in ("Presente", "Justificada", "Falta")}
+    total = len(missoes)
+
+    return MeuResumo(
+        ano=ano,
+        id_servo=usuario.id_servo,
+        frequencia=MinhaFrequencia(
+            presente=contagem["Presente"],
+            justificada=contagem["Justificada"],
+            falta=contagem["Falta"],
+            # Mesma conta da tela de frequência: justificada conta como presença
+            percentual_presenca=(
+                round((contagem["Presente"] + contagem["Justificada"]) * 100 / total, 2) if total else None
+            ),
+        ),
+        missoes=missoes,
+        foguinho=MeuFoguinho(**foguinho) if foguinho else MeuFoguinho(),
+        pastas=pastas,
+    )
 
 
 # ── PUT /auth/senha ───────────────────────────────────────────────────────────

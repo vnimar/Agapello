@@ -49,7 +49,7 @@ function ServoDetalhes({
       {/* Barra de frequência */}
       <View style={styles.barraWrap}>
         <View style={styles.barraRow}>
-          <Text style={styles.barraLabel}>Frequência geral</Text>
+          <Text style={styles.barraLabel}>Frequência em {new Date().getFullYear()}</Text>
           <Text style={[styles.barraValor, { color: cor.text }]}>
             {percentual !== null ? `${percentual}%` : "Sem dados"}
           </Text>
