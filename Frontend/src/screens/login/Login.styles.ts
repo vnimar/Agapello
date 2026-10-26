@@ -14,12 +14,13 @@ export const authStyles = StyleSheet.create({
     paddingVertical: 24,
     justifyContent: "center",
   },
+  // No fluxo (sem position absolute) para respeitar a área segura
+  // e não ficar embaixo da barra de status
   fechar: {
-    position: "absolute",
-    top: 8,
-    right: 16,
+    alignSelf: "flex-end",
+    marginTop: 4,
+    marginRight: 16,
     padding: 8,
-    zIndex: 1,
   },
   fecharText: {
     fontSize: 20,
