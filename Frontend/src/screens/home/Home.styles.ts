@@ -74,7 +74,9 @@ export const styles = StyleSheet.create({
   /* Atalhos */
   atalhos: {
     flexDirection: 'row',
+    flexWrap: 'wrap',  // coord. geral/admin têm 5 atalhos: o 5º vai para a linha de baixo
     justifyContent: 'space-evenly',
+    rowGap: 16,
     marginBottom: 28,
   },
   atalho: {

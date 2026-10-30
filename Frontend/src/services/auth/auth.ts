@@ -44,6 +44,14 @@ export const PERFIS_COORD_SERVOS: Perfil[] = [
   "administrador",
 ];
 
+/** Chamada de cursistas: coordenador e tutor (só a própria comunidade), coord. geral e administrador. */
+export const PERFIS_CURSISTAS: Perfil[] = [
+  "coordenador_comunidade_cursista",
+  "tutor_comunidade_cursista",
+  "coordenador_geral",
+  "administrador",
+];
+
 /** Se o backend já exige login de todos (LOGIN_OBRIGATORIO no Render). */
 export async function buscarLoginObrigatorio(): Promise<boolean> {
   const config = await apiRequest<{ login_obrigatorio: boolean }>("/auth/config");

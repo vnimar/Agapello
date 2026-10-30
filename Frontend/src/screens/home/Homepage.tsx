@@ -83,7 +83,7 @@ function Atalho({icone, texto, onPress}: {icone: NomeIcone; texto: string; onPre
 
 const Home: React.FC = () => {
   const router = useRouter();
-  const {usuario, cuidaDosServos} = useAuth();
+  const {usuario, cuidaDosServos, cuidaDosCursistas} = useAuth();
   const primeiroNome = usuario?.nome.split(' ')[0] || 'Servo';
 
   const [missao, setMissao] = useState<Missao | null>(null);
@@ -175,6 +175,9 @@ const Home: React.FC = () => {
         )}
         {cuidaDosServos && (
           <Atalho icone="people-outline" texto="Servos" onPress={() => router.push('/servo')} />
+        )}
+        {cuidaDosCursistas && (
+          <Atalho icone="school-outline" texto="Cursistas" onPress={() => router.push('/cursistas')} />
         )}
       </View>
 

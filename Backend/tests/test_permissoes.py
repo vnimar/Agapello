@@ -13,6 +13,7 @@ import pytest
 TODOS = {"servo", "formacao", "coord.kairos", "tutor.kairos", "coordgeral", "admin"}
 COORD_SERVOS = {"formacao", "coordgeral", "admin"}
 ADMIN_CALENDARIO = {"coordgeral", "admin"}
+CURSISTAS = {"coord.kairos", "tutor.kairos", "coordgeral", "admin"}
 SO_ADMIN = {"admin"}
 
 INEXISTENTE = 999999
@@ -35,6 +36,11 @@ ROTAS = [
     ("GET", f"/frequencia/missao/{INEXISTENTE}", None, COORD_SERVOS),
     ("POST", "/frequencia/register", {}, COORD_SERVOS),
     ("PUT", "/frequencia/update", {}, COORD_SERVOS),
+
+    # Chamada de cursistas
+    ("GET", "/cursistas/chamada/missoes", None, CURSISTAS),
+    ("GET", f"/cursistas/chamada/{INEXISTENTE}", None, CURSISTAS),
+    ("PUT", f"/cursistas/chamada/{INEXISTENTE}", {}, CURSISTAS),
 
     # Contas
     ("GET", "/auth/me", None, TODOS),

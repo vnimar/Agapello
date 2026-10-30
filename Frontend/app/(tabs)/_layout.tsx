@@ -76,6 +76,8 @@ export default function TabLayout() {
                         <IconSymbol size={28} name="checkmark.circle" color={color}/>
                     ),
                 }}/>
+            {/* Sem aba própria: abre pelo atalho da Home (a barra não cresce) */}
+            <Tabs.Screen name="cursistas" options={{ href: null, title: 'Cursistas' }}/>
         </Tabs>
   );
 }

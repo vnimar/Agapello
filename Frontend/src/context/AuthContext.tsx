@@ -5,6 +5,7 @@ import {
   Usuario,
   PERFIS_ADMIN,
   PERFIS_COORD_SERVOS,
+  PERFIS_CURSISTAS,
   temPerfil,
   buscarLoginObrigatorio,
   login as loginApi,
@@ -26,6 +27,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   loginObrigatorio: boolean;  // backend já exige login de todos
   cuidaDosServos: boolean;    // pode ver a lista de servos e fazer a chamada
+  cuidaDosCursistas: boolean; // faz a chamada de cursistas
   entrar: (email: string, senha: string) => Promise<void>;
   sair: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;  // ex.: depois de trocar a senha
@@ -117,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginObrigatorio,
     // Sem login (só na transição) continua vendo tudo, como antes
     cuidaDosServos: usuario ? temPerfil(usuario, PERFIS_COORD_SERVOS) : !loginObrigatorio,
+    cuidaDosCursistas: temPerfil(usuario, PERFIS_CURSISTAS),
     entrar,
     sair,
     recarregarUsuario,

@@ -218,10 +218,13 @@ def main() -> int:
                 ("servos_2", -14, "Teste: missão de servos", "servos"),
                 ("servos_3", -7, "Teste: vivência de servos", "servos"),
                 ("ambos_1", -10, "Teste: missa com cursistas e servos", "ambos"),
-                ("curs_1", -12, "Teste: encontro de comunidade", "cursistas"),
-                ("curs_2", -5, "Teste: formação de cursistas", "cursistas"),
+                # Chamada de cursistas: reconhecida pelo nome (fn_missao_de_cursista)
+                ("encontro_1", -13, "Encontro Querigmático", "cursistas"),
+                ("encontro_2", -12, "Encontro Querigmático", "cursistas"),
+                ("curs_1", -5, "Formação de Cursistas", "cursistas"),
+                ("curs_2", -2, "Formação de Cursistas", "cursistas"),  # chamada ainda não feita
                 ("futura_servos", 7, "Teste: próxima missão de servos", "servos"),
-                ("futura_curs", 9, "Teste: próxima reunião de cursistas", "cursistas"),
+                ("futura_curs", 9, "Formação de Cursistas (próxima)", "cursistas"),
             ]:
                 cur.execute(
                     """INSERT INTO missao (data, descricao, publico, horario, local)
@@ -285,7 +288,7 @@ def main() -> int:
 
             # Chamada dos cursistas (cada comunidade lançada pelo próprio tutor)
             quem_lanca = {"Kairós": "tutor.kairos", "Maranata": "tutor.maranata", "Kenosis": "admin"}
-            for i, chave in enumerate(["curs_1", "ambos_1", "curs_2"]):
+            for i, chave in enumerate(["encontro_1", "encontro_2", "curs_1"]):
                 id_missao, _ = missoes[chave]
                 for nome_com, ids in cursistas_ativos.items():
                     for j, id_cursista in enumerate(ids):

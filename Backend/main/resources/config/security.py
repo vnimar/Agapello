@@ -45,6 +45,15 @@ PERFIS_COORD_SERVOS: tuple[PerfilType, ...] = (
     "administrador",
 )
 
+# Perfis da chamada de cursistas. Coordenador e tutor veem só a própria
+# comunidade (vw_responsaveis_comunidade); coord. geral e administrador, todas.
+PERFIS_CURSISTAS: tuple[PerfilType, ...] = (
+    "coordenador_comunidade_cursista",
+    "tutor_comunidade_cursista",
+    "coordenador_geral",
+    "administrador",
+)
+
 # ── Hash de senha ─────────────────────────────────────────────────────────────
 #
 # bcrypt é o padrão para hash de senha; nunca salve senha em texto puro.
