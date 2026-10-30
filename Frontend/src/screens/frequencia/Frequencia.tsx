@@ -98,7 +98,7 @@ export default function FrequenciaScreen() {
     return servos.filter((s) => normalize(s.nome).includes(q));
   }, [busca, servos]);
 
-  // Filtra mantendo a ordem da API (próximas primeiro, depois as passadas)
+  // Filtra mantendo a ordem da API (da mais recente para a mais antiga)
   const missoesFiltradas = useMemo(() => {
     if (!buscaMissao.trim()) return missoes;
     const q = normalize(buscaMissao.trim());
@@ -164,7 +164,11 @@ export default function FrequenciaScreen() {
     setLoadingServos(true);
     try {
       const [missoesData, servosData] = await Promise.all([getMissoesComFrequencia(), getServos()]);
-      setMissoes(missoesData.data)
+      // A API já manda só as missões até hoje, da mais recente para a mais antiga
+      // (o filtro aqui cobre a diferença de fuso entre o servidor e o aparelho)
+      const hoje = hojeKey();
+      const ateHoje = missoesData.data.filter((m) => m.data <= hoje);
+      setMissoes(ateHoje);
 
       // @ts-ignore
       const servosRaw = Array.isArray(servosData) ? servosData : servosData?.data || [];
@@ -180,12 +184,7 @@ export default function FrequenciaScreen() {
       servosRef.current = servosNormalizados;
 
       // Já abre na missão de hoje ou, se não tiver, na última que passou
-      // (a API manda as passadas da mais recente para a mais antiga)
-      const hoje = hojeKey();
-      const inicial =
-        missoesData.data.find((m) => m.data === hoje) ??
-        missoesData.data.find((m) => m.data < hoje);
-      if (inicial) selecionarMissao(inicial);
+      if (ateHoje.length > 0) selecionarMissao(ateHoje[0]);
     } catch (error: any) {
       Alert.alert("Erro", error?.message || "Falha ao carregar dados.");
     } finally {

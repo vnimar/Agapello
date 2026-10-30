@@ -123,21 +123,13 @@ class TestTransicao:
         # 422 = passou da checagem de acesso (corpo vazio, nada gravado)
         assert client.post("/frequencia/register", headers=headers(None), json={}).status_code == 422
 
-    def test_sem_login_edita_missao_so_com_pin(self, client, headers):
-        sem_pin = client.post("/missao/", headers=headers(None), json={})
-        com_pin = client.post("/missao/", headers={**headers(None), "X-Admin-Pin": "pin-dos-testes"}, json={})
-        assert sem_pin.status_code == 403
-        assert com_pin.status_code == 422
+    def test_sem_login_nao_edita_missao(self, client, headers):
+        # O PIN saiu: editar o calendário exige login mesmo na transição
+        assert client.post("/missao/", headers=headers(None), json={}).status_code == 401
 
     def test_logado_ja_respeita_o_perfil(self, client, headers):
         assert client.get("/servos/", headers=headers("servo")).status_code == 403
         assert client.post("/missao/", headers=headers("formacao"), json={}).status_code == 403
-
-
-@pytest.mark.usefixtures("login_obrigatorio")
-def test_pin_nao_vale_com_login_obrigatorio(client, headers):
-    resposta = client.post("/missao/", headers={**headers(None), "X-Admin-Pin": "pin-dos-testes"}, json={})
-    assert resposta.status_code == 401
 
 
 def test_sem_api_key_e_recusado(client):

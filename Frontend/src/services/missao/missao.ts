@@ -1,6 +1,5 @@
 // eslint-disable-next-line import/namespace
 import {apiRequest} from "../api"
-import { adminHeaders } from "../admin/admin";
 
 export type PublicoMissao = "servos" | "cursistas" | "ambos";
 
@@ -47,37 +46,33 @@ export async function getUltimasMissoes() {
     return apiRequest<Missao[]>("/missao/ultimas");
     }
 
-// ── Edição (exige PIN) ────────────────────────────────────────────────────────
+// ── Edição (administrador/coord. geral) ─────────────────────────────────────
 
-export async function criarMissao(missao: MissaoInput) {
+export function criarMissao(missao: MissaoInput) {
     return apiRequest<Missao>("/missao/", {
         method: "POST",
-        headers: await adminHeaders(),
         body: JSON.stringify(missao),
     });
     }
 
-export async function atualizarMissao(id_missao: number, missao: MissaoInput) {
+export function atualizarMissao(id_missao: number, missao: MissaoInput) {
     return apiRequest<Missao>(`/missao/${id_missao}`, {
         method: "PUT",
-        headers: await adminHeaders(),
         body: JSON.stringify(missao),
     });
     }
 
-export async function excluirMissao(id_missao: number) {
+export function excluirMissao(id_missao: number) {
     return apiRequest<void>(`/missao/${id_missao}`, {
         method: "DELETE",
-        headers: await adminHeaders(),
     });
     }
 
-export async function importarMissoes(missoes: MissaoInput[], confirmar: boolean) {
+export function importarMissoes(missoes: MissaoInput[], confirmar: boolean) {
     return apiRequest<{ message: string; gravadas: number; itens: MissaoImportItem[] }>(
         "/missao/importar",
         {
             method: "POST",
-            headers: await adminHeaders(),
             body: JSON.stringify({ missoes, confirmar }),
         }
     );

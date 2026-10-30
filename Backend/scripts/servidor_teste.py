@@ -55,7 +55,6 @@ def main() -> int:
     os.environ["DATABASE_URL"] = url
     os.environ["API_KEY"] = real.get("API_KEY") or "api-key-local"  # a mesma que o app já usa
     os.environ["JWT_SECRET"] = secrets.token_urlsafe(32)
-    os.environ["ADMIN_PIN"] = teste.get("ADMIN_PIN") or "1234"
     os.environ["LOGIN_OBRIGATORIO"] = "true" if "--obrigatorio" in sys.argv else "false"
 
     print(f"\nBanco de TESTE · login obrigatório: {os.environ['LOGIN_OBRIGATORIO']}")

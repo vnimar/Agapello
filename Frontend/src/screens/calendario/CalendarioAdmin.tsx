@@ -10,10 +10,9 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { adminStyles as styles } from "./CalendarioAdmin.styles";
-import { entrarModoEdicao } from "../../services/admin/admin";
+import { Cores } from "@/constants/theme";
 import {
   Missao,
   MissaoInput,
@@ -65,79 +64,6 @@ const PUBLICOS: { valor: PublicoMissao; label: string }[] = [
   { valor: "cursistas", label: "Cursistas" },
   { valor: "ambos", label: "Ambos" },
 ];
-
-// ── Modal do PIN ──────────────────────────────────────────────────────────────
-
-export function PinModal({
-  visible,
-  onClose,
-  onSuccess,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [pin, setPin] = useState("");
-  const [verificando, setVerificando] = useState(false);
-
-  useEffect(() => {
-    if (visible) setPin("");
-  }, [visible]);
-
-  const confirmar = async () => {
-    if (!pin.trim()) return;
-    setVerificando(true);
-    try {
-      await entrarModoEdicao(pin.trim());
-      onSuccess();
-    } catch (err: any) {
-      Alert.alert("Não foi possível entrar", err?.message || "Tente novamente.");
-    } finally {
-      setVerificando(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.centerOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.pinCard}>
-          <Text style={styles.title}>Modo de edição</Text>
-          <Text style={styles.subtitle}>Informe o PIN de administração</Text>
-          <TextInput
-            style={styles.input}
-            value={pin}
-            onChangeText={setPin}
-            placeholder="PIN"
-            placeholderTextColor="#9CA3AF"
-            secureTextEntry
-            autoFocus
-            autoCapitalize="none"
-            onSubmitEditing={confirmar}
-          />
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.btnSecondary} onPress={onClose}>
-              <Text style={styles.btnSecondaryText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, verificando && styles.btnDisabled]}
-              onPress={confirmar}
-              disabled={verificando}
-            >
-              {verificando ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.btnPrimaryText}>Entrar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
 
 // ── Modal de criar/editar missão ──────────────────────────────────────────────
 
@@ -225,7 +151,7 @@ export function MissaoEditModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.sheetOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         <View style={styles.sheet}>
           <View style={styles.handle} />
@@ -238,7 +164,7 @@ export function MissaoEditModal({
               value={descricao}
               onChangeText={setDescricao}
               placeholder="Ex.: Missa Mensal do Ágape"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Cores.iconeInativo}
             />
 
             <View style={styles.row}>
@@ -249,7 +175,7 @@ export function MissaoEditModal({
                   value={data}
                   onChangeText={(t) => setData(mascaraData(t))}
                   placeholder="dd/mm/aaaa"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Cores.iconeInativo}
                   keyboardType="number-pad"
                 />
               </View>
@@ -260,7 +186,7 @@ export function MissaoEditModal({
                   value={horario}
                   onChangeText={(t) => setHorario(mascaraHora(t))}
                   placeholder="hh:mm"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Cores.iconeInativo}
                   keyboardType="number-pad"
                 />
               </View>
@@ -272,7 +198,7 @@ export function MissaoEditModal({
               value={local}
               onChangeText={setLocal}
               placeholder="Ex.: Paróquia São Miguel"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Cores.iconeInativo}
             />
 
             <Text style={styles.label}>Público</Text>
@@ -292,7 +218,12 @@ export function MissaoEditModal({
 
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>Conta na frequência</Text>
-              <Switch value={contaFrequencia} onValueChange={setContaFrequencia} />
+              <Switch
+                value={contaFrequencia}
+                onValueChange={setContaFrequencia}
+                trackColor={{ false: Cores.borda, true: Cores.primariaClara }}
+                thumbColor={contaFrequencia ? Cores.primaria : Cores.card}
+              />
             </View>
 
             <Text style={styles.label}>Observação</Text>
@@ -301,7 +232,7 @@ export function MissaoEditModal({
               value={observacao}
               onChangeText={setObservacao}
               placeholder="Ex.: Remarcada por causa da eleição"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Cores.iconeInativo}
               multiline
             />
           </ScrollView>
@@ -322,7 +253,7 @@ export function MissaoEditModal({
               disabled={salvando}
             >
               {salvando ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
               ) : (
                 <Text style={styles.btnPrimaryText}>Salvar</Text>
               )}

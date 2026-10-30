@@ -3,8 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Response
 from ..bd.db import get_connection
 import psycopg2.extras
 from datetime import date
-from ..config.auth import verify_admin_pin, verify_admin
-from ..config.security import exigir_login
+from ..config.security import PERFIS_ADMIN, exigir_login, require_perfil
 from ..schemas.missao_schema import (
     MissaoResponse,
     MissaoCreate,
@@ -16,7 +15,7 @@ from ..schemas.missao_schema import (
 
 logger = logging.getLogger(__name__)
 
-# Ver o calendário: qualquer perfil logado. Editar: verify_admin em cada rota.
+# Ver o calendário: qualquer perfil logado. Editar: administrador/coord. geral.
 router = APIRouter(prefix="/missao", tags=["Missão"], dependencies=[Depends(exigir_login)])
 
 CAMPOS = "id_missao, data, descricao, horario, local, publico, conta_frequencia, observacao"
@@ -111,12 +110,9 @@ def get_ultimas_missoes():
         logger.error(f"Erro ao buscar últimas missões: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no servidor.")
 
-# ── Administração (PIN) ───────────────────────────────────────────────────────
+# ── Administração ─────────────────────────────────────────────────────────────
 
-@router.post("/admin/verificar-pin", status_code=204, dependencies=[Depends(verify_admin_pin)])
-def verificar_pin():
-    """Usado pelo app para validar o PIN antes de liberar o modo de edição."""
-    return Response(status_code=204)
+verify_admin = require_perfil(*PERFIS_ADMIN)
 
 @router.post("/", response_model=MissaoResponse, status_code=201, dependencies=[Depends(verify_admin)])
 def criar_missao(body: MissaoCreate):

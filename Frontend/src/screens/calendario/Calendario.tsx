@@ -5,15 +5,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { styles } from "./Calendario.styles";
 import { getMissoes, Missao } from "../../services/missao/missao";
-import { getAdminPin, sairModoEdicao } from "../../services/admin/admin";
-import { PinModal, MissaoEditModal } from "./CalendarioAdmin";
+import { MissaoEditModal } from "./CalendarioAdmin";
 import { useAuth } from "../../context/AuthContext";
 import Header, { headerStyles } from '../../../components/Header';
 import { Cores } from "@/constants/theme";
@@ -86,10 +84,9 @@ export default function CalendarioScreen() {
     new Map()
   );
 
-  // Modo de edição: login de administrador/coord. geral ou PIN
+  // Modo de edição: só administrador/coord. geral
   const { isAdmin } = useAuth();
   const [modoEdicao, setModoEdicao] = useState(false);
-  const [pinVisible, setPinVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [missaoEditando, setMissaoEditando] = useState<Missao | null>(null);
 
@@ -106,7 +103,6 @@ export default function CalendarioScreen() {
 
   useEffect(() => {
     carregar();
-    getAdminPin().then((pin) => setModoEdicao(!!pin));
   }, [carregar]);
 
   useEffect(() => {
@@ -116,29 +112,10 @@ export default function CalendarioScreen() {
     router.setParams({ data: undefined });
   }, [dataParam, router]);
 
-  // Saiu da conta de administrador e não tem PIN salvo → fecha o modo de edição
+  // Saiu da conta de administrador → fecha o modo de edição
   useEffect(() => {
-    if (isAdmin) return;
-    getAdminPin().then((pin) => { if (!pin) setModoEdicao(false); });
+    if (!isAdmin) setModoEdicao(false);
   }, [isAdmin]);
-
-  const alternarModoEdicao = async () => {
-    if (!modoEdicao) {
-      if (isAdmin) return setModoEdicao(true);
-      return setPinVisible(true);
-    }
-    if (isAdmin && !(await getAdminPin())) return setModoEdicao(false);
-    Alert.alert("Sair do modo de edição?", "Para editar de novo será preciso informar o PIN.", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Sair",
-        onPress: async () => {
-          await sairModoEdicao();
-          setModoEdicao(false);
-        },
-      },
-    ]);
-  };
 
   const abrirEdicao = (missao: Missao | null) => {
     setMissaoEditando(missao);
@@ -262,15 +239,17 @@ export default function CalendarioScreen() {
         <Header>
           <View style={styles.headerRow}>
             <Text style={headerStyles.title}>Calendário</Text>
-            <TouchableOpacity
-              onPress={alternarModoEdicao}
-              style={[styles.editModeButton, modoEdicao && styles.editModeButtonActive]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={[styles.editModeText, modoEdicao && styles.editModeTextActive]}>
-                {modoEdicao ? "Editando ✓" : "Editar"}
-              </Text>
-            </TouchableOpacity>
+            {isAdmin && (
+              <TouchableOpacity
+                onPress={() => setModoEdicao((v) => !v)}
+                style={[styles.editModeButton, modoEdicao && styles.editModeButtonActive]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.editModeText, modoEdicao && styles.editModeTextActive]}>
+                  {modoEdicao ? "Editando ✓" : "Editar"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Header>
 
@@ -382,14 +361,6 @@ export default function CalendarioScreen() {
         </View>
       </ScrollView>
 
-      <PinModal
-        visible={pinVisible}
-        onClose={() => setPinVisible(false)}
-        onSuccess={() => {
-          setPinVisible(false);
-          setModoEdicao(true);
-        }}
-      />
       <MissaoEditModal
         visible={editVisible}
         missao={missaoEditando}

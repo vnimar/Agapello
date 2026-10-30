@@ -22,6 +22,22 @@ logger = logging.getLogger(__name__)
 # Chamada de servos: coord. formação/vivência, coord. geral e administrador
 router = APIRouter(prefix="/frequencia", tags=["Frequência"], dependencies=[Depends(exigir_coord_servos)])
 
+
+def _verificar_missao(cursor, id_missao: int):
+    """A missão precisa existir e já ter acontecido (ou ser hoje)."""
+    cursor.execute(
+        "SELECT data > CURRENT_DATE FROM missao WHERE id_missao = %s",
+        (id_missao,)
+    )
+    linha = cursor.fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Missão não encontrada.")
+    if linha[0]:
+        raise HTTPException(
+            status_code=400,
+            detail="Essa missão ainda não aconteceu. A frequência só pode ser lançada a partir do dia dela."
+        )
+
 @router.post("/register", response_model=MessageResponse, status_code=201)
 def register_frequencia(
     body: FrequenciaCreate,
@@ -32,15 +48,8 @@ def register_frequencia(
         with get_connection() as conn:
             with conn.cursor() as cursor:
 
-                # 1. Verificar se a missão existe
-                # A chamada pode ser feita antes ou depois da data da missão
-                cursor.execute(
-                    "SELECT 1 FROM missao WHERE id_missao = %s",
-                    (body.id_missao,)
-                )
-
-                if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="Missão não encontrada.")
+                # 1. Verificar se a missão existe e já chegou o dia dela
+                _verificar_missao(cursor, body.id_missao)
 
                 # 2. Verificar duplicidade
                 cursor.execute("""
@@ -125,10 +134,9 @@ def get_missoes_com_frequencia():
                             WHERE f.id_missao = m.id_missao
                         ) AS tem_frequencia
                     FROM missao m
-                    ORDER BY
-                        CASE WHEN m.data >= CURRENT_DATE THEN 0 ELSE 1 END ASC,
-                        CASE WHEN m.data >= CURRENT_DATE THEN m.data END ASC,
-                        CASE WHEN m.data < CURRENT_DATE THEN m.data END DESC
+                    -- Só as que já aconteceram (ou são hoje): a futura não recebe chamada
+                    WHERE m.data <= CURRENT_DATE
+                    ORDER BY m.data DESC, m.id_missao
                 """)
                 return MissoesComFrequenciaResponse(data=cursor.fetchall())
 
@@ -201,13 +209,7 @@ def update_frequencia(
         with get_connection() as conn:
             with conn.cursor() as cursor:
 
-                cursor.execute(
-                    "SELECT 1 FROM missao WHERE id_missao = %s",
-                    (body.id_missao,)
-                )
-
-                if not cursor.fetchone():
-                    raise HTTPException(status_code=404, detail="Missão não encontrada.")
+                _verificar_missao(cursor, body.id_missao)
 
                 cursor.execute("""
                     UPDATE frequencia

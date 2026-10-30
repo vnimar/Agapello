@@ -1,77 +1,57 @@
 import { Platform, StyleSheet } from "react-native";
-
-const AZUL = "#649AFA";
-const TEXTO = "#1A2C3E";
+import { Cores } from "@/constants/theme";
 
 export const adminStyles = StyleSheet.create({
-  // ── Overlays ──
-  centerOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
+  // ── Folha ──
   sheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(27,43,94,0.35)",
     justifyContent: "flex-end",
   },
-
-  // ── Cartões ──
-  pinCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-  },
   sheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Cores.fundo,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === "ios" ? 36 : 20,
+    paddingBottom: Platform.OS === "ios" ? 36 : 24,
     maxHeight: "90%",
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: Cores.borda,
     alignSelf: "center",
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: TEXTO,
+    fontSize: 20,
+    fontWeight: "800",
+    color: Cores.marinho,
     marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6C757D",
-    marginBottom: 12,
   },
 
   // ── Campos ──
   label: {
     fontSize: 13,
-    fontWeight: "500",
-    color: "#6C757D",
+    fontWeight: "600",
+    color: Cores.textoSuave,
     marginTop: 14,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "ios" ? 12 : 8,
+    backgroundColor: Cores.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === "ios" ? 13 : 10,
     fontSize: 15,
-    color: TEXTO,
+    color: Cores.texto,
   },
   inputMultiline: {
-    minHeight: 70,
+    minHeight: 76,
     textAlignVertical: "top",
   },
   row: {
@@ -86,34 +66,42 @@ export const adminStyles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Cores.card,
+    borderWidth: 1,
+    borderColor: Cores.borda,
   },
   chipActive: {
-    backgroundColor: AZUL,
-    borderColor: AZUL,
+    backgroundColor: Cores.primariaSuave,
+    borderColor: Cores.primaria,
   },
   chipText: {
     fontSize: 14,
-    color: TEXTO,
+    fontWeight: "500",
+    color: Cores.textoSuave,
   },
   chipTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: Cores.primaria,
+    fontWeight: "700",
   },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 14,
+    marginTop: 16,
+    backgroundColor: Cores.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   switchLabel: {
     fontSize: 15,
-    color: TEXTO,
+    color: Cores.texto,
   },
 
   // ── Botões ──
@@ -124,27 +112,27 @@ export const adminStyles = StyleSheet.create({
   },
   btnPrimary: {
     flex: 1,
-    backgroundColor: AZUL,
+    backgroundColor: Cores.primaria,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   btnPrimaryText: {
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   btnSecondary: {
     flex: 1,
-    backgroundColor: "#F1F3F5",
+    backgroundColor: Cores.primariaSuave,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   btnSecondaryText: {
-    color: TEXTO,
+    color: Cores.marinho,
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   btnDanger: {
     flex: 1,
@@ -156,7 +144,7 @@ export const adminStyles = StyleSheet.create({
   btnDangerText: {
     color: "#A32D2D",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   btnDisabled: {
     opacity: 0.6,
@@ -167,6 +155,6 @@ export const adminStyles = StyleSheet.create({
   },
   linkFecharText: {
     fontSize: 14,
-    color: "#6C757D",
+    color: Cores.textoSuave,
   },
 });

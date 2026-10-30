@@ -41,7 +41,6 @@ if _projeto(_url_teste) == _projeto(_url_real):
 os.environ["DATABASE_URL"] = _url_teste
 os.environ["API_KEY"] = "api-key-dos-testes"
 os.environ["JWT_SECRET"] = "jwt-secret-dos-testes"
-os.environ["ADMIN_PIN"] = "pin-dos-testes"
 SENHA_TESTE = _teste.get("SENHA_TESTE", "")
 
 sys.path.insert(0, str(BACKEND / "main"))
