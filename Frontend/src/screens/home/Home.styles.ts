@@ -72,15 +72,16 @@ export const styles = StyleSheet.create({
   },
 
   /* Atalhos */
+  // 3 atalhos por linha; a linha incompleta fica centralizada
   atalhos: {
     flexDirection: 'row',
-    flexWrap: 'wrap',  // coord. geral/admin têm 5 atalhos: o 5º vai para a linha de baixo
-    justifyContent: 'space-evenly',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     rowGap: 16,
     marginBottom: 28,
   },
   atalho: {
-    width: '25%',
+    width: '33.33%',
     alignItems: 'center',
   },
   atalhoCirculo: {
