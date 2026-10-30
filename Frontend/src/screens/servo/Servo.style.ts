@@ -1,38 +1,5 @@
-import { StyleSheet, Platform } from "react-native";
-
-// ─── Cores por frequência ──────────────────────────────────────────────────
-
-export const FREQ_VERDE = {
-  bg: "#EAF3DE",
-  text: "#3B6D11",
-  bar: "#639922",
-  label: "Boa",
-};
-
-export const FREQ_AMARELO = {
-  bg: "#FAEEDA",
-  text: "#854F0B",
-  bar: "#BA7517",
-  label: "Regular",
-};
-
-export const FREQ_VERMELHO = {
-  bg: "#FCEBEB",
-  text: "#A32D2D",
-  bar: "#E24B4A",
-  label: "Crítica",
-};
-
-// Função unificada (aceita null e limites 75/50)
-export const getFreqColor = (value: number | null) => {
-  if (value === null)
-    return { background: "#F3F4F6", text: "#9CA3AF", bar: "#D1D5DB" };
-  if (value >= 75)
-    return { background: "#EAF3DE", text: "#3B6D11", bar: "#5A9E1E" };
-  if (value >= 50)
-    return { background: "#FFF6E5", text: "#854F0B", bar: "#F59E0B" };
-  return { background: "#FCEBEB", text: "#A32D2D", bar: "#E24B4A" };
-};
+import { StyleSheet } from "react-native";
+import { Cores } from "@/constants/theme";
 
 // ─── Estilos globais ──────────────────────────────────────────────────────
 
@@ -40,20 +7,20 @@ export const styles = StyleSheet.create({
   // Layout base
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F9FB",
+    backgroundColor: Cores.fundo,
   },
 
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F8F9FB",
+    backgroundColor: Cores.fundo,
   },
 
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#888",
+    color: Cores.textoSuave,
   },
 
   listContent: {
@@ -62,26 +29,12 @@ export const styles = StyleSheet.create({
     paddingTop: 8,
   },
 
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1E3A8A",
-    marginTop: 2,
-  },
-
-  logo: {
-    width: 44,
-    height: 44,
-    resizeMode: "contain",
-    borderRadius: 10,
-  },
-
-  // ─── NOVO: Barra de busca e filtro ──────────────────────────────────────
+  // ─── Barra de busca e filtro ────────────────────────────────────────────
   searchArea: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 8,
     gap: 8,
   },
 
@@ -89,24 +42,22 @@ export const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: Cores.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Cores.borda,
     paddingHorizontal: 12,
-    height: 42,
+    height: 46,
   },
 
   searchIcon: {
-    fontSize: 15,
-    color: "#9CA3AF",
     marginRight: 8,
   },
 
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: "#1F2937",
+    fontSize: 15,
+    color: Cores.texto,
     paddingVertical: 0,
     includeFontPadding: false,
   },
@@ -115,68 +66,36 @@ export const styles = StyleSheet.create({
     paddingLeft: 4,
   },
 
-  clearButtonText: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    fontWeight: "600",
-  },
-
   filterButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: Cores.primariaSuave,
     alignItems: "center",
     justifyContent: "center",
   },
 
   filterButtonActive: {
-    backgroundColor: "#1E3A8A",
-    borderColor: "#1E3A8A",
-  },
-
-  filterIconLines: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-  },
-
-  filterLine: {
-    width: 16,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: "#6B7280",
-  },
-
-  filterLineShort: {
-    width: 11,
-  },
-
-  filterLineShorter: {
-    width: 6,
-  },
-
-  filterLineActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.primaria,
   },
 
   badge: {
     position: "absolute",
     top: -5,
     right: -5,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#EF4444",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Cores.marinho,
+    borderWidth: 2,
+    borderColor: Cores.fundo,
     alignItems: "center",
     justifyContent: "center",
   },
 
   badgeText: {
     fontSize: 9,
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
     fontWeight: "700",
   },
 
@@ -190,47 +109,50 @@ export const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 20,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    gap: 4,
+    backgroundColor: Cores.primariaSuave,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
 
   chipLabel: {
-    fontSize: 12,
-    color: "#1E3A8A",
-    fontWeight: "500",
-    marginRight: 5,
-  },
-
-  chipClose: {
-    fontSize: 11,
+    fontSize: 13,
+    color: Cores.primaria,
     fontWeight: "600",
-    color: "#1E3A8A",
   },
 
   // Contador
   counterWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 4,
   },
 
   counterText: {
-    fontSize: 12,
-    color: "#9CA3AF",
+    fontSize: 13,
+    color: Cores.textoSuave,
     fontWeight: "500",
+  },
+
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 10,
+  },
+
+  emptyStateText: {
+    fontSize: 15,
+    color: Cores.textoSuave,
   },
 
   // ─── MODAL (bottom sheet) ───────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(27,43,94,0.45)",
   },
 
   modalContent: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -243,7 +165,7 @@ export const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: Cores.borda,
     alignSelf: "center",
     marginBottom: 20,
   },
@@ -256,22 +178,16 @@ export const styles = StyleSheet.create({
   },
 
   modalTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#111827",
-  },
-
-  modalCloseButton: {
-    fontSize: 16,
-    color: "#6B7280",
-    padding: 4,
+    fontSize: 18,
+    fontWeight: "700",
+    color: Cores.texto,
   },
 
   filterSectionTitle: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#9CA3AF",
-    letterSpacing: 0.6,
+    fontSize: 12,
+    fontWeight: "700",
+    color: Cores.textoSuave,
+    letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 12,
   },
@@ -290,13 +206,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: Cores.borda,
+    backgroundColor: Cores.card,
   },
 
   filterOptionActive: {
-    backgroundColor: "#1E3A8A",
-    borderColor: "#1E3A8A",
+    backgroundColor: Cores.primaria,
+    borderColor: Cores.primaria,
   },
 
   filterOptionDot: {
@@ -307,13 +223,13 @@ export const styles = StyleSheet.create({
   },
 
   filterOptionText: {
-    fontSize: 13,
-    color: "#374151",
+    fontSize: 14,
+    color: Cores.texto,
     fontWeight: "500",
   },
 
   filterOptionTextActive: {
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
   },
 
   modalActions: {
@@ -325,46 +241,39 @@ export const styles = StyleSheet.create({
   modalBtnClear: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F3F4F6",
+    borderRadius: 14,
+    backgroundColor: Cores.primariaSuave,
     alignItems: "center",
   },
 
   modalBtnClearText: {
-    fontSize: 14,
-    color: "#374151",
-    fontWeight: "500",
+    fontSize: 15,
+    color: Cores.primaria,
+    fontWeight: "600",
   },
 
   modalBtnApply: {
     flex: 2,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#1E3A8A",
+    borderRadius: 14,
+    backgroundColor: Cores.primaria,
     alignItems: "center",
   },
 
   modalBtnApplyText: {
-    fontSize: 14,
-    color: "#FFFFFF",
+    fontSize: 15,
+    color: Cores.textoSobrePrimaria,
     fontWeight: "600",
   },
 
   // ─── Cards e detalhes ─────────────────────────────
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.card,
     borderRadius: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Cores.borda,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
 
   cardHeader: {
@@ -379,21 +288,55 @@ export const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
+  cardNomeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
   cardNome: {
-    fontSize: 15,
+    flexShrink: 1,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#0C447C",
+    color: Cores.texto,
+  },
+
+  cardNomeInativo: {
+    color: Cores.textoSuave,
+  },
+
+  tagInativo: {
+    backgroundColor: "#EEF1F6",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+
+  tagInativoText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Cores.textoSuave,
   },
 
   cardPastas: {
-    fontSize: 12,
-    color: "#9CA3AF",
+    fontSize: 13,
+    color: Cores.textoSuave,
     marginTop: 2,
   },
 
+  freqPill: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginLeft: 8,
+  },
+
+  freqPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
   chevron: {
-    fontSize: 18,
-    color: "#9CA3AF",
     marginLeft: 8,
   },
 
@@ -401,23 +344,31 @@ export const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: Cores.primariaSuave,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
 
+  avatarInativo: {
+    backgroundColor: "#EEF1F6",
+  },
+
   avatarText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1E3A8A",
+    color: Cores.primaria,
+  },
+
+  avatarTextInativo: {
+    color: Cores.iconeInativo,
   },
 
   details: {
     paddingHorizontal: 14,
     paddingBottom: 14,
-    borderTopWidth: 0.5,
-    borderTopColor: "#F3F4F6",
+    borderTopWidth: 1,
+    borderTopColor: Cores.primariaSuave,
   },
 
   barraWrap: {
@@ -433,26 +384,26 @@ export const styles = StyleSheet.create({
   },
 
   barraLabel: {
-    fontSize: 12,
-    color: "#6B7280",
+    fontSize: 13,
+    color: Cores.textoSuave,
     fontWeight: "500",
   },
 
   barraValor: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
   },
 
   barraFundo: {
-    height: 6,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: Cores.primariaSuave,
+    borderRadius: 4,
     overflow: "hidden",
   },
 
   barraPreenchimento: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
   },
 
   contadores: {
@@ -463,7 +414,7 @@ export const styles = StyleSheet.create({
 
   contadorCard: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 8,
     alignItems: "center",
   },
@@ -474,13 +425,13 @@ export const styles = StyleSheet.create({
   },
 
   contadorLabel: {
-    fontSize: 10,
+    fontSize: 11,
     marginTop: 2,
     fontWeight: "500",
   },
 
   dadosBox: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Cores.fundo,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -491,8 +442,8 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E7EB",
+    borderBottomWidth: 1,
+    borderBottomColor: Cores.primariaSuave,
   },
 
   dadosRowLast: {
@@ -500,27 +451,15 @@ export const styles = StyleSheet.create({
   },
 
   dadosKey: {
-    fontSize: 13,
-    color: "#6B7280",
+    fontSize: 14,
+    color: Cores.textoSuave,
   },
 
   dadosValue: {
-    fontSize: 13,
-    color: "#1F2937",
+    fontSize: 14,
+    color: Cores.texto,
     fontWeight: "500",
     maxWidth: "60%",
     textAlign: "right",
-  },
-
-  inlineLoading: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    gap: 8,
-  },
-
-  inlineLoadingText: {
-    fontSize: 13,
-    color: "#9CA3AF",
   },
 });

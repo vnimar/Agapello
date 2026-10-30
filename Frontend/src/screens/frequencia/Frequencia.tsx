@@ -14,8 +14,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Frequencia.styles";
-import { getMissoes } from "../../services/missao/missao";
 import { getServos } from "../../services/servos/servos";
 import {
   getFrequenciaById,
@@ -27,6 +27,8 @@ import {
   MissaoComFrequencia
 } from "../../services/frequencia/frequencia";
 import Header from '../../../components/Header';
+import { Cores } from "@/constants/theme";
+import { STATUS_CORES } from "@/constants/frequencia";
 
 // Tipos locais
 
@@ -48,14 +50,32 @@ interface FrequenciaRegistro {
   status: StatusFrequencia;
 }
 
+const STATUS_LISTA: StatusFrequencia[] = ["Presente", "Justificada", "Falta"];
+
 function normalize(str: string){
-  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function formatarData(dateStr: string) {
   const [year, month, day] = dateStr.split("-");
   return `${day}/${month}/${year}`;
 }
+
+// YYYY-MM-DD no fuso do aparelho (toISOString usaria UTC)
+function hojeKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// "2026-11-15" → "Domingo, 15 de novembro"
+function dataPorExtenso(dateStr: string) {
+  const [ano, mes, dia] = dateStr.slice(0, 10).split("-").map(Number);
+  const texto = new Date(ano, mes - 1, dia).toLocaleDateString("pt-BR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 // Componente
 
 export default function FrequenciaScreen() {
@@ -94,39 +114,6 @@ export default function FrequenciaScreen() {
 
   const servosRef = useRef<ServoNormalizado[]>([]);
   servosRef.current = servos;
-
-  useEffect(() => {
-    carregarDados();
-  }, []);
-
-  // Carregamento inicial
-
-  const carregarDados = async () => {
-    setLoadingMissoes(true);
-    setLoadingServos(true);
-    try {
-      const [missoesData, servosData] = await Promise.all([getMissoesComFrequencia(), getServos()]);
-      setMissoes(missoesData.data)
-
-      // @ts-ignore
-      const servosRaw = Array.isArray(servosData) ? servosData : servosData?.data || [];
-      const servosNormalizados: ServoNormalizado[] = servosRaw
-        .filter((s: any) => s && (s.id_servo || s.id))
-        .map((s: any) => ({
-          id: s.id_servo ?? s.id,
-          nome: s.nome || "Sem nome",
-          status: s.status ?? null,
-        }));
-
-      setServos(servosNormalizados);
-      servosRef.current = servosNormalizados;
-    } catch (error: any) {
-      Alert.alert("Erro", error?.message || "Falha ao carregar dados.");
-    } finally {
-      setLoadingMissoes(false);
-      setLoadingServos(false);
-    }
-  };
 
   // Selecionar missão e carregar frequência existente
   const selecionarMissao = useCallback(async (missao: Missao) => {
@@ -170,11 +157,65 @@ export default function FrequenciaScreen() {
     }
   }, []);
 
+  // Carregamento inicial
+
+  const carregarDados = useCallback(async () => {
+    setLoadingMissoes(true);
+    setLoadingServos(true);
+    try {
+      const [missoesData, servosData] = await Promise.all([getMissoesComFrequencia(), getServos()]);
+      setMissoes(missoesData.data)
+
+      // @ts-ignore
+      const servosRaw = Array.isArray(servosData) ? servosData : servosData?.data || [];
+      const servosNormalizados: ServoNormalizado[] = servosRaw
+        .filter((s: any) => s && (s.id_servo || s.id))
+        .map((s: any) => ({
+          id: s.id_servo ?? s.id,
+          nome: s.nome || "Sem nome",
+          status: s.status ?? null,
+        }));
+
+      setServos(servosNormalizados);
+      servosRef.current = servosNormalizados;
+
+      // Já abre na missão de hoje ou, se não tiver, na última que passou
+      // (a API manda as passadas da mais recente para a mais antiga)
+      const hoje = hojeKey();
+      const inicial =
+        missoesData.data.find((m) => m.data === hoje) ??
+        missoesData.data.find((m) => m.data < hoje);
+      if (inicial) selecionarMissao(inicial);
+    } catch (error: any) {
+      Alert.alert("Erro", error?.message || "Falha ao carregar dados.");
+    } finally {
+      setLoadingMissoes(false);
+      setLoadingServos(false);
+    }
+  }, [selecionarMissao]);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
   // Marcar status de um servo
 
   const marcarStatus = useCallback((id: number, status: StatusFrequencia) => {
     setAttendance((prev) => ({ ...prev, [id]: status }));
   }, []);
+
+  const marcarTodosPresentes = useCallback(() => {
+    const todos: Record<number, StatusFrequencia | null> = {};
+    servosRef.current.forEach((s) => { todos[s.id] = "Presente"; });
+    setAttendance(todos);
+  }, []);
+
+  // Marca a missão como lançada na lista do seletor
+  const marcarMissaoLancada = (id_missao: number) => {
+    setMissoes((prev) =>
+      prev.map((m) => (m.id_missao === id_missao ? { ...m, tem_frequencia: true } : m))
+    );
+  };
 
   // Confirmar frequência (POST)
 
@@ -202,6 +243,7 @@ export default function FrequenciaScreen() {
         status: attendance[s.id] as StatusFrequencia,
       }));
       setFrequenciaExistente(novaExistente);
+      marcarMissaoLancada(missaoSelecionada.id_missao);
     } catch (err: any) {
       Alert.alert("Erro", err?.message || "Não foi possível salvar.");
     } finally {
@@ -271,6 +313,7 @@ export default function FrequenciaScreen() {
 
   const jaLancada = frequenciaExistente.length > 0;
   const podeEditar = !jaLancada || modoEdicao;
+  const todosPresentes = servos.length > 0 && contagem.presente === servos.length;
 
   // Render de cada servo
 
@@ -283,30 +326,22 @@ export default function FrequenciaScreen() {
         </View>
         <Text style={styles.servoNome} numberOfLines={1}>{item.nome}</Text>
         <View style={styles.statusButtons}>
-          {(["Presente", "Justificada", "Falta"] as StatusFrequencia[]).map((s) => {
+          {STATUS_LISTA.map((s) => {
             const ativo = statusAtual === s;
-            const buttonStyle: any[] = [styles.statusBtn];
-            const textStyle: any[] = [styles.statusBtnText];
-            if (ativo) {
-              if (s === "Presente") {
-                buttonStyle.push(styles.statusBtn_Presente);
-                textStyle.push(styles.statusBtnText_Presente);
-              } else if (s === "Justificada") {
-                buttonStyle.push(styles.statusBtn_Justificada);
-                textStyle.push(styles.statusBtnText_Justificada);
-              } else {
-                buttonStyle.push(styles.statusBtn_Falta);
-                textStyle.push(styles.statusBtnText_Falta);
-              }
-            }
+            const cor = STATUS_CORES[s];
             return (
               <TouchableOpacity
                 key={s}
-                style={buttonStyle}
+                style={[
+                  styles.statusBtn,
+                  ativo && { backgroundColor: cor.fundo, borderColor: cor.forte },
+                  !podeEditar && !ativo && styles.statusBtnBloqueado,
+                ]}
                 onPress={() => podeEditar && marcarStatus(item.id, s)}
                 activeOpacity={podeEditar ? 0.7 : 1}
+                accessibilityLabel={`${item.nome}: ${s}`}
               >
-                <Text style={textStyle}>
+                <Text style={[styles.statusBtnText, ativo && { color: cor.texto }]}>
                   {s === "Presente" ? "P" : s === "Justificada" ? "J" : "F"}
                 </Text>
               </TouchableOpacity>
@@ -317,91 +352,127 @@ export default function FrequenciaScreen() {
     );
   };
 
+  // Selo do estado da frequência no card da missão
+  const selo = modoEdicao
+    ? { texto: "Editando", cor: STATUS_CORES.Justificada }
+    : jaLancada
+    ? { texto: "Registrada", cor: STATUS_CORES.Presente }
+    : { texto: "Pendente", cor: { fundo: Cores.primariaSuave, texto: Cores.primaria } };
+
   // Render principal
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={Cores.fundo} />
 
       {/* Header */}
       <Header title="Frequência" />
-        <TouchableOpacity
-          style={styles.missaoSelector}
-          onPress={abrirModalMissoes}
-        >
-          <Text style={styles.missaoSelectorLabel}>Missão</Text>
-          <Text style={styles.missaoSelectorValue} numberOfLines={1}>
-            {missaoSelecionada
-              ? `${formatarData(missaoSelecionada.data)}${missaoSelecionada.descricao ? ` — ${missaoSelecionada.descricao}` : ""}`
-              : "Selecione uma missão"}
-          </Text>
-          <Text style={styles.missaoSelectorChevron}>›</Text>
-        </TouchableOpacity>
 
-        {jaLancada && !modoEdicao && (
-          <View style={styles.badgeLancada}>
-            <Text style={styles.badgeLancadaText}>Frequência já registrada</Text>
-          </View>
-        )}
-        {modoEdicao && (
-          <View style={styles.badgeEdicao}>
-            <Text style={styles.badgeEdicaoText}>Modo edição — altere e confirme</Text>
-          </View>
-        )}
-
-      {/* Search Bar */}
-      {missaoSelecionada && !loadingServos && (
-        <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar servo..."
-            placeholderTextColor="#9CA3AF"
-            value={busca}
-            onChangeText={setBusca}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            returnKeyType="search"
-          />
-          {busca.length > 0 && (
-            <TouchableOpacity onPress={() => setBusca("")}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.searchClear}>✕</Text>
-            </TouchableOpacity>
-          )}
+      {/* Card da missão (toque para trocar) */}
+      <TouchableOpacity
+        style={styles.missaoCard}
+        onPress={abrirModalMissoes}
+        activeOpacity={0.7}
+      >
+        <View style={styles.missaoIcon}>
+          <Ionicons name="calendar-outline" size={22} color={Cores.primaria} />
         </View>
-      )}
+        {missaoSelecionada ? (
+          <View style={styles.missaoBody}>
+            <Text style={styles.missaoTitulo} numberOfLines={1}>
+              {missaoSelecionada.descricao || "Missão"}
+            </Text>
+            <View style={styles.missaoInfoRow}>
+              <Text style={styles.missaoData} numberOfLines={1}>
+                {dataPorExtenso(missaoSelecionada.data)}
+              </Text>
+              <View style={[styles.selo, { backgroundColor: selo.cor.fundo }]}>
+                <Text style={[styles.seloTexto, { color: selo.cor.texto }]}>{selo.texto}</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.missaoBody}>
+            <Text style={styles.missaoTitulo}>Selecione uma missão</Text>
+            <Text style={styles.missaoData}>Toque para escolher</Text>
+          </View>
+        )}
+        <Ionicons name="swap-vertical" size={20} color={Cores.primaria} />
+      </TouchableOpacity>
 
-      {/* Contador de resultados da busca */}
-      {missaoSelecionada && busca.trim().length > 0 && (
-        <Text style={styles.searchCount}>
-          {servosFiltrados.length} de {servos.length} servos
-        </Text>
+      {/* Busca + Todos presentes */}
+      {missaoSelecionada && !loadingServos && (
+        <>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={18} color={Cores.iconeInativo} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar servo..."
+              placeholderTextColor={Cores.iconeInativo}
+              value={busca}
+              onChangeText={setBusca}
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {busca.length > 0 && (
+              <TouchableOpacity onPress={() => setBusca("")}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color={Cores.iconeInativo} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.listaTopo}>
+            <Text style={styles.searchCount}>
+              {busca.trim().length > 0
+                ? `${servosFiltrados.length} de ${servos.length} servos`
+                : `${servos.length} servos`}
+            </Text>
+            {podeEditar && servos.length > 0 && (
+              <TouchableOpacity
+                style={[styles.todosBtn, todosPresentes && styles.todosBtnFeito]}
+                onPress={marcarTodosPresentes}
+                disabled={todosPresentes}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={todosPresentes ? "checkmark-done" : "checkmark-done-outline"}
+                  size={16}
+                  color={todosPresentes ? STATUS_CORES.Presente.texto : Cores.primaria}
+                />
+                <Text style={[styles.todosBtnText, todosPresentes && styles.todosBtnTextFeito]}>
+                  Todos presentes
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
       )}
 
       {/* Conteúdo principal */}
-      {!missaoSelecionada ? (
+      {loadingServos ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>📋</Text>
+          <ActivityIndicator size="large" color={Cores.primaria} />
+        </View>
+      ) : !missaoSelecionada ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="clipboard-outline" size={40} color={Cores.iconeInativo} />
           <Text style={styles.emptyStateText}>Selecione uma missão</Text>
           <Text style={styles.emptyStateSubtext}>para carregar a lista de servos</Text>
         </View>
-      ) : loadingServos ? (
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#1D9E75" />
-        </View>
       ) : servosFiltrados.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={40} color={Cores.iconeInativo} />
           <Text style={styles.emptyStateText}>Nenhum servo encontrado</Text>
-          <Text style={styles.emptyStateSubtext}>Nome inexistente</Text>
+          <Text style={styles.emptyStateSubtext}>Confira o nome digitado</Text>
         </View>
       ) : (
         <FlatList
+          style={styles.lista}
           data={servosFiltrados}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderServos}
-          extraData={attendance}
+          extraData={{ attendance, podeEditar }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -413,18 +484,16 @@ export default function FrequenciaScreen() {
       {missaoSelecionada && (
         <View style={styles.footer}>
           <View style={styles.counters}>
-            <View style={[styles.counterCard, styles.counterPresente]}>
-              <Text style={[styles.counterNum, styles.counterNumPresente]}>{contagem.presente}</Text>
-              <Text style={[styles.counterLabel, styles.counterLabelPresente]}>presentes</Text>
-            </View>
-            <View style={[styles.counterCard, styles.counterJustificada]}>
-              <Text style={[styles.counterNum, styles.counterNumJustificada]}>{contagem.justificada}</Text>
-              <Text style={[styles.counterLabel, styles.counterLabelJustificada]}>justificados</Text>
-            </View>
-            <View style={[styles.counterCard, styles.counterFalta]}>
-              <Text style={[styles.counterNum, styles.counterNumFalta]}>{contagem.falta}</Text>
-              <Text style={[styles.counterLabel, styles.counterLabelFalta]}>faltas</Text>
-            </View>
+            {[
+              { status: "Presente" as const, valor: contagem.presente, label: "presentes" },
+              { status: "Justificada" as const, valor: contagem.justificada, label: "justificados" },
+              { status: "Falta" as const, valor: contagem.falta, label: "faltas" },
+            ].map((c) => (
+              <View key={c.status} style={[styles.counterCard, { backgroundColor: STATUS_CORES[c.status].fundo }]}>
+                <Text style={[styles.counterNum, { color: STATUS_CORES[c.status].texto }]}>{c.valor}</Text>
+                <Text style={[styles.counterLabel, { color: STATUS_CORES[c.status].texto }]}>{c.label}</Text>
+              </View>
+            ))}
           </View>
 
           {!jaLancada && (
@@ -435,7 +504,7 @@ export default function FrequenciaScreen() {
               activeOpacity={0.8}
             >
               {salvando ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
               ) : (
                 <Text style={styles.btnConfirmarText}>Confirmar frequência</Text>
               )}
@@ -448,6 +517,7 @@ export default function FrequenciaScreen() {
               onPress={() => setModoEdicao(true)}
               activeOpacity={0.8}
             >
+              <Ionicons name="create-outline" size={18} color={Cores.primaria} />
               <Text style={styles.btnAtualizarText}>Editar frequência</Text>
             </TouchableOpacity>
           )}
@@ -463,13 +533,13 @@ export default function FrequenciaScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.btnConfirmar, salvando && styles.btnDisabled]}
+                style={[styles.btnConfirmar, styles.btnConfirmarFlex, salvando && styles.btnDisabled]}
                 onPress={salvarEdicao}
                 disabled={salvando}
                 activeOpacity={0.8}
               >
                 {salvando ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
                 ) : (
                   <Text style={styles.btnConfirmarText}>Salvar alterações</Text>
                 )}
@@ -499,11 +569,11 @@ export default function FrequenciaScreen() {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Selecione a missão</Text>
             <View style={[styles.searchContainer, styles.searchContainerModal]}>
-              <Text style={styles.searchIcon}>🔍</Text>
+              <Ionicons name="search" size={18} color={Cores.iconeInativo} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Buscar por data ou descrição..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Cores.iconeInativo}
                 value={buscaMissao}
                 onChangeText={setBuscaMissao}
                 autoCorrect={false}
@@ -512,36 +582,48 @@ export default function FrequenciaScreen() {
               {buscaMissao.length > 0 && (
                 <TouchableOpacity onPress={() => setBuscaMissao("")}
                                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.searchClear}>✕</Text>
+                  <Ionicons name="close-circle" size={18} color={Cores.iconeInativo} />
                 </TouchableOpacity>
               )}
             </View>
             {loadingMissoes ? (
-              <ActivityIndicator color="#1D9E75" style={{ marginTop: 24 }} />
+              <ActivityIndicator color={Cores.primaria} style={{ marginTop: 24 }} />
             ) : missoesFiltradas.length === 0 ? (
               <Text style={styles.missaoEmpty}>Nenhuma missão encontrada</Text>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {missoesFiltradas.map((m) => (
-                  <TouchableOpacity
-                    key={m.id_missao}
-                    style={[
-                      styles.missaoItem,
-                      missaoSelecionada?.id_missao === m.id_missao && styles.missaoItemSelected,
-                    ]}
-                    onPress={() => selecionarMissao(m)}
-                  >
-                    <View>
-                      <Text style={styles.missaoItemData}>{formatarData(m.data)}</Text>
-                      {m.descricao && (
-                        <Text style={styles.missaoItemDesc}>{m.descricao}</Text>
+                {missoesFiltradas.map((m) => {
+                  const selecionada = missaoSelecionada?.id_missao === m.id_missao;
+                  return (
+                    <TouchableOpacity
+                      key={m.id_missao}
+                      style={[styles.missaoItem, selecionada && styles.missaoItemSelected]}
+                      onPress={() => selecionarMissao(m)}
+                    >
+                      <View style={styles.missaoItemBody}>
+                        <View style={styles.missaoItemTopo}>
+                          <Text style={styles.missaoItemData}>{formatarData(m.data)}</Text>
+                          {m.data === hojeKey() && (
+                            <View style={styles.tagHoje}>
+                              <Text style={styles.tagHojeText}>Hoje</Text>
+                            </View>
+                          )}
+                          {m.tem_frequencia && (
+                            <View style={[styles.tagHoje, { backgroundColor: STATUS_CORES.Presente.fundo }]}>
+                              <Text style={[styles.tagHojeText, { color: STATUS_CORES.Presente.texto }]}>Registrada</Text>
+                            </View>
+                          )}
+                        </View>
+                        {m.descricao && (
+                          <Text style={styles.missaoItemDesc} numberOfLines={1}>{m.descricao}</Text>
+                        )}
+                      </View>
+                      {selecionada && (
+                        <Ionicons name="checkmark-circle" size={22} color={Cores.primaria} />
                       )}
-                    </View>
-                    {missaoSelecionada?.id_missao === m.id_missao && (
-                      <Text style={styles.missaoItemCheck}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             )}
           </View>

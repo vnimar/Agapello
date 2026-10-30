@@ -10,13 +10,16 @@ import {
   Modal,
   ScrollView,
 } from "react-native";
-import { styles, getFreqColor } from "./Servo.style";
+import { Ionicons } from "@expo/vector-icons";
+import { styles } from "./Servo.style";
 import { getServos } from "../../services/servos/servos";
 import {
   getFrequenciaServos,
   FrequenciaServoResumo,
 } from "../../services/frequencia/frequencia";
 import Header from "../../../components/Header";
+import { Cores } from "@/constants/theme";
+import { STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +32,7 @@ interface Servo {
   pastas: string[];
 }
 
-// ─── Sub-componente: detalhes expandidos de um servo (inalterado) ────────────
+// ─── Sub-componente: detalhes expandidos de um servo ──────────────────────────
 
 function ServoDetalhes({
   servo,
@@ -39,7 +42,7 @@ function ServoDetalhes({
   resumo: FrequenciaServoResumo | null;
 }) {
   const percentual = resumo?.percentual_presenca ?? null;
-  const cor = getFreqColor(percentual);
+  const cor = corDaFrequencia(percentual);
   const total = resumo
     ? resumo.presente + resumo.justificada + resumo.falta
     : 0;
@@ -50,7 +53,7 @@ function ServoDetalhes({
       <View style={styles.barraWrap}>
         <View style={styles.barraRow}>
           <Text style={styles.barraLabel}>Frequência em {new Date().getFullYear()}</Text>
-          <Text style={[styles.barraValor, { color: cor.text }]}>
+          <Text style={[styles.barraValor, { color: cor.texto }]}>
             {percentual !== null ? `${percentual}%` : "Sem dados"}
           </Text>
         </View>
@@ -60,7 +63,7 @@ function ServoDetalhes({
               styles.barraPreenchimento,
               {
                 width: `${percentual ?? 0}%`,
-                backgroundColor: cor.bar,
+                backgroundColor: cor.forte,
               },
             ]}
           />
@@ -71,33 +74,18 @@ function ServoDetalhes({
       {resumo && total > 0 && (
         <View style={styles.contadores}>
           {[
-            {
-              label: "Presentes",
-              val: resumo.presente,
-              bg: "#EAF3DE",
-              col: "#3B6D11",
-            },
-            {
-              label: "Justificadas",
-              val: resumo.justificada,
-              bg: "#FAEEDA",
-              col: "#854F0B",
-            },
-            {
-              label: "Faltas",
-              val: resumo.falta,
-              bg: "#FCEBEB",
-              col: "#A32D2D",
-            },
+            { label: "Presentes", val: resumo.presente, cor: STATUS_CORES.Presente },
+            { label: "Justificadas", val: resumo.justificada, cor: STATUS_CORES.Justificada },
+            { label: "Faltas", val: resumo.falta, cor: STATUS_CORES.Falta },
           ].map((item) => (
             <View
               key={item.label}
-              style={[styles.contadorCard, { backgroundColor: item.bg }]}
+              style={[styles.contadorCard, { backgroundColor: item.cor.fundo }]}
             >
-              <Text style={[styles.contadorNum, { color: item.col }]}>
+              <Text style={[styles.contadorNum, { color: item.cor.texto }]}>
                 {item.val}
               </Text>
-              <Text style={[styles.contadorLabel, { color: item.col }]}>
+              <Text style={[styles.contadorLabel, { color: item.cor.texto }]}>
                 {item.label}
               </Text>
             </View>
@@ -263,6 +251,9 @@ export default function ServosScreen() {
     ({ item }: { item: Servo }) => {
       const isExpanded = expandedId === item.id;
       const resumo = frequencias[item.id] ?? null;
+      const percentual = resumo?.percentual_presenca ?? null;
+      const cor = corDaFrequencia(percentual);
+      const inativo = item.status === "Inativo";
       return (
         <View style={styles.card}>
           <TouchableOpacity
@@ -270,14 +261,26 @@ export default function ServosScreen() {
             onPress={() => toggleExpand(item.id)}
             activeOpacity={0.7}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(item.nome)}</Text>
+            <View style={[styles.avatar, inativo && styles.avatarInativo]}>
+              <Text style={[styles.avatarText, inativo && styles.avatarTextInativo]}>
+                {getInitials(item.nome)}
+              </Text>
             </View>
 
             <View style={styles.cardInfo}>
-              <Text style={styles.cardNome} numberOfLines={1}>
-                {item.nome}
-              </Text>
+              <View style={styles.cardNomeRow}>
+                <Text
+                  style={[styles.cardNome, inativo && styles.cardNomeInativo]}
+                  numberOfLines={1}
+                >
+                  {item.nome}
+                </Text>
+                {inativo && (
+                  <View style={styles.tagInativo}>
+                    <Text style={styles.tagInativoText}>Inativo</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.cardPastas} numberOfLines={1}>
                 {item.pastas && item.pastas.length > 0
                   ? item.pastas.join(" · ")
@@ -285,7 +288,20 @@ export default function ServosScreen() {
               </Text>
             </View>
 
-            <Text style={styles.chevron}>{isExpanded ? "˄" : "˅"}</Text>
+            {percentual !== null && (
+              <View style={[styles.freqPill, { backgroundColor: cor.fundo }]}>
+                <Text style={[styles.freqPillText, { color: cor.texto }]}>
+                  {percentual}%
+                </Text>
+              </View>
+            )}
+
+            <Ionicons
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={Cores.iconeInativo}
+              style={styles.chevron}
+            />
           </TouchableOpacity>
 
           {isExpanded && (
@@ -362,7 +378,7 @@ export default function ServosScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1E3A8A" />
+        <ActivityIndicator size="large" color={Cores.primaria} />
         <Text style={styles.loadingText}>Carregando servos...</Text>
       </View>
     );
@@ -375,11 +391,11 @@ export default function ServosScreen() {
       {/* Barra de busca e filtro */}
       <View style={styles.searchArea}>
         <View style={styles.searchInputWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={18} color={Cores.iconeInativo} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar servo..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={Cores.iconeInativo}
             value={searchText}
             onChangeText={setSearchText}
             returnKeyType="search"
@@ -390,7 +406,7 @@ export default function ServosScreen() {
               style={styles.clearButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.clearButtonText}>✕</Text>
+              <Ionicons name="close-circle" size={18} color={Cores.iconeInativo} />
             </TouchableOpacity>
           )}
         </View>
@@ -403,11 +419,11 @@ export default function ServosScreen() {
           onPress={openModal}
           activeOpacity={0.7}
         >
-          <View style={styles.filterIconLines}>
-            <View style={[styles.filterLine, isAnyFilterActive && styles.filterLineActive]} />
-            <View style={[styles.filterLine, styles.filterLineShort, isAnyFilterActive && styles.filterLineActive]} />
-            <View style={[styles.filterLine, styles.filterLineShorter, isAnyFilterActive && styles.filterLineActive]} />
-          </View>
+          <Ionicons
+            name="options-outline"
+            size={20}
+            color={isAnyFilterActive ? Cores.textoSobrePrimaria : Cores.primaria}
+          />
           {activeFilterCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{activeFilterCount}</Text>
@@ -431,7 +447,7 @@ export default function ServosScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.chipLabel}>{chip.label}</Text>
-              <Text style={styles.chipClose}>✕</Text>
+              <Ionicons name="close" size={14} color={Cores.primaria} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -450,6 +466,13 @@ export default function ServosScreen() {
         extraData={{ expandedId, frequencias }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="search-outline" size={36} color={Cores.iconeInativo} />
+            <Text style={styles.emptyStateText}>Nenhum servo encontrado</Text>
+          </View>
+        }
       />
 
       {/* Modal de filtro (bottom sheet) */}
@@ -471,7 +494,7 @@ export default function ServosScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filtrar servos</Text>
             <TouchableOpacity onPress={closeModal} hitSlop={12}>
-              <Text style={styles.modalCloseButton}>✕</Text>
+              <Ionicons name="close" size={22} color={Cores.textoSuave} />
             </TouchableOpacity>
           </View>
 
@@ -480,17 +503,9 @@ export default function ServosScreen() {
           <View style={styles.filterOptionsRow}>
             {[
               { value: "todas", label: "Todas" },
-              { value: "boa", label: "Boa", indicator: "#5A9E1E" },
-              {
-                value: "regular",
-                label: "Regular",
-                indicator: "#F59E0B",
-              },
-              {
-                value: "critica",
-                label: "Crítica",
-                indicator: "#E24B4A",
-              },
+              { value: "boa", label: "Boa", indicator: STATUS_CORES.Presente.forte },
+              { value: "regular", label: "Regular", indicator: STATUS_CORES.Justificada.forte },
+              { value: "critica", label: "Crítica", indicator: STATUS_CORES.Falta.forte },
             ].map((opt) => (
               <TouchableOpacity
                 key={opt.value}

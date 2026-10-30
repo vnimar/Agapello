@@ -1,16 +1,9 @@
 import { StyleSheet } from "react-native";
-import {
-  VERDE_LIGHT, VERDE_DARK, AMARELO_LIGHT, AMARELO_DARK, VERMELHO_LIGHT, VERMELHO_DARK,
-} from "../frequencia/Frequencia.styles";
 
 const TEXTO = "#1A2C3E";
 const CINZA = "#6C757D";
 
-export const STATUS_CORES = {
-  Presente: { fundo: VERDE_LIGHT, texto: VERDE_DARK },
-  Justificada: { fundo: AMARELO_LIGHT, texto: AMARELO_DARK },
-  Falta: { fundo: VERMELHO_LIGHT, texto: VERMELHO_DARK },
-} as const;
+export { STATUS_CORES } from "@/constants/frequencia";
 
 export const resumoStyles = StyleSheet.create({
   carregando: {

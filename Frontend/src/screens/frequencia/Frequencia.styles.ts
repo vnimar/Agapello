@@ -1,103 +1,82 @@
 import { StyleSheet, Platform } from "react-native";
-
-export const VERDE = "#1D9E75";
-export const VERDE_LIGHT = "#E6F7F2";
-export const VERDE_DARK = "#0F6B4F";
-
-export const AMARELO_LIGHT = "#FFF6E5";
-export const AMARELO_DARK = "#C98A00";
-
-export const VERMELHO_LIGHT = "#FFEAEA";
-export const VERMELHO_DARK = "#C0392B";
+import { Cores } from "@/constants/theme";
+import { STATUS_CORES } from "@/constants/frequencia";
 
 export const styles = StyleSheet.create({
   // ── Container principal ──
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Cores.fundo,
   },
 
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 12,
-  },
-
-  missaoSelector: {
+  // ── Card da missão ──
+  missaoCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
+    gap: 12,
+    marginHorizontal: 16,
+    padding: 14,
+    backgroundColor: Cores.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
   },
 
-  missaoSelectorLabel: {
-    fontSize: 12,
-    color: "#888",
-    marginRight: 8,
-    minWidth: 42,
+  missaoIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Cores.primariaSuave,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  missaoSelectorValue: {
+  missaoBody: {
     flex: 1,
+  },
+
+  missaoTitulo: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Cores.texto,
+    marginBottom: 3,
+  },
+
+  missaoInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  missaoData: {
+    flexShrink: 1,
     fontSize: 14,
-    color: "#1A1A1A",
-    fontWeight: "500",
+    color: Cores.textoSuave,
   },
 
-  missaoSelectorChevron: {
-    fontSize: 20,
-    color: "#888",
-    marginLeft: 8,
+  selo: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
 
-  badgeLancada: {
-    marginTop: 8,
-    backgroundColor: VERDE_LIGHT,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    alignSelf: "flex-start",
-  },
-
-  badgeLancadaText: {
+  seloTexto: {
     fontSize: 12,
-    color: VERDE_DARK,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
-  badgeEdicao: {
-    marginTop: 8,
-    backgroundColor: AMARELO_LIGHT,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    alignSelf: "flex-start",
-  },
-
-  badgeEdicaoText: {
-    fontSize: 12,
-    color: AMARELO_DARK,
-    fontWeight: "500",
-  },
-
-  // ── Search bar (novo) ──────────────────────────────────────────────────────
+  // ── Busca ──
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
+    backgroundColor: Cores.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Cores.borda,
     marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 2,
+    marginTop: 12,
     paddingHorizontal: 12,
-    height: 42,
+    height: 46,
     gap: 8,
   },
 
@@ -107,83 +86,106 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  searchIcon: {
-    fontSize: 15,
-  },
-
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: "#1A1A1A",
+    fontSize: 15,
+    color: Cores.texto,
     paddingVertical: 0, // remove padding vertical padrão do Android
   },
 
-  searchClear: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    paddingLeft: 4,
+  listaTopo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 8,
   },
 
   searchCount: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginHorizontal: 16,
-    marginBottom: 4,
-    marginTop: 4,
+    fontSize: 13,
+    color: Cores.textoSuave,
+    fontWeight: "500",
   },
-  // ─────────────────────────────────────────────────────────────────────────
+
+  todosBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Cores.primariaSuave,
+  },
+
+  todosBtnFeito: {
+    backgroundColor: STATUS_CORES.Presente.fundo,
+  },
+
+  todosBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Cores.primaria,
+  },
+
+  todosBtnTextFeito: {
+    color: STATUS_CORES.Presente.texto,
+  },
 
   // ── Estado vazio ──
   emptyState: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-
-  emptyStateIcon: {
-    fontSize: 40,
-    marginBottom: 12,
+    gap: 4,
   },
 
   emptyStateText: {
     fontSize: 16,
-    color: "#888",
-    fontWeight: "500",
+    color: Cores.texto,
+    fontWeight: "600",
+    marginTop: 8,
   },
 
   emptyStateSubtext: {
     fontSize: 14,
-    color: "#AAA",
-    marginTop: 4,
+    color: Cores.textoSuave,
   },
 
-  // ── Lista ──
+  // ── Lista (num card branco) ──
+  lista: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: Cores.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+
   listContent: {
-    paddingBottom: 8,
-    backgroundColor: "#fff",
+    paddingVertical: 4,
   },
 
   separator: {
-    height: 0.5,
-    backgroundColor: "#F0F0F0",
-    marginLeft: 72,
+    height: 1,
+    backgroundColor: Cores.primariaSuave,
+    marginLeft: 66,
   },
 
   // ── Linha de servo ──
   servoRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#fff",
   },
 
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: VERDE_LIGHT,
+    backgroundColor: Cores.primariaSuave,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -192,14 +194,15 @@ export const styles = StyleSheet.create({
 
   avatarText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: VERDE_DARK,
+    fontWeight: "700",
+    color: Cores.primaria,
   },
 
   servoNome: {
     flex: 1,
     fontSize: 15,
-    color: "#1A1A1A",
+    fontWeight: "500",
+    color: Cores.texto,
   },
 
   statusButtons: {
@@ -208,46 +211,32 @@ export const styles = StyleSheet.create({
   },
 
   statusBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: "#D0D0D0",
-    backgroundColor: "#F5F5F5",
+    borderColor: Cores.borda,
+    backgroundColor: Cores.card,
   },
 
-  statusBtn_Presente: {
-    backgroundColor: VERDE_LIGHT,
-    borderColor: VERDE,
-  },
-
-  statusBtn_Justificada: {
-    backgroundColor: AMARELO_LIGHT,
-    borderColor: "#BA7517",
-  },
-
-  statusBtn_Falta: {
-    backgroundColor: VERMELHO_LIGHT,
-    borderColor: "#E24B4A",
+  // Frequência já registrada (fora do modo edição): só o status marcado aparece forte
+  statusBtnBloqueado: {
+    opacity: 0.4,
   },
 
   statusBtnText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#999",
+    fontWeight: "700",
+    color: Cores.iconeInativo,
   },
-
-  statusBtnText_Presente:    { color: VERDE_DARK },
-  statusBtnText_Justificada: { color: AMARELO_DARK },
-  statusBtnText_Falta:       { color: VERMELHO_DARK },
 
   // ── Footer e Botões ──
   footer: {
-    backgroundColor: "#fff",
-    borderTopWidth: 0.5,
-    borderTopColor: "#E0E0E0",
+    backgroundColor: Cores.card,
+    borderTopWidth: 1,
+    borderTopColor: Cores.borda,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: Platform.OS === "ios" ? 28 : 16,
@@ -261,32 +250,23 @@ export const styles = StyleSheet.create({
 
   counterCard: {
     flex: 1,
-    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    gap: 5,
+    borderRadius: 10,
     paddingVertical: 8,
-    alignItems: "center",
   },
-
-  counterPresente:    { backgroundColor: VERDE_LIGHT },
-  counterJustificada: { backgroundColor: AMARELO_LIGHT },
-  counterFalta:       { backgroundColor: VERMELHO_LIGHT },
 
   counterNum: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
   },
-
-  counterNumPresente:    { color: VERDE_DARK },
-  counterNumJustificada: { color: AMARELO_DARK },
-  counterNumFalta:       { color: VERMELHO_DARK },
 
   counterLabel: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "500",
   },
-
-  counterLabelPresente:    { color: VERDE_DARK },
-  counterLabelJustificada: { color: AMARELO_DARK },
-  counterLabelFalta:       { color: VERMELHO_DARK },
 
   actionButtons: {
     flexDirection: "row",
@@ -294,15 +274,20 @@ export const styles = StyleSheet.create({
   },
 
   btnConfirmar: {
-    backgroundColor: VERDE,
-    borderRadius: 12,
+    backgroundColor: Cores.primaria,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 50,
   },
+
+  btnConfirmarFlex: {
+    flex: 2,
+  },
+
   btnConfirmarText: {
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
@@ -310,32 +295,35 @@ export const styles = StyleSheet.create({
   },
 
   btnAtualizar: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: Cores.primariaSuave,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
+    justifyContent: "center",
+    minHeight: 50,
   },
   btnAtualizarText: {
-    color: "#1A1A1A",
+    color: Cores.primaria,
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
     textAlign: "center",
   },
 
   btnCancelar: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: Cores.primariaSuave,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#E0E0E0",
+    justifyContent: "center",
+    minHeight: 50,
   },
   btnCancelarText: {
-    color: "#666666",
+    color: Cores.primaria,
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
     textAlign: "center",
   },
 
@@ -346,14 +334,14 @@ export const styles = StyleSheet.create({
   // ── Modal ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(27,43,94,0.45)",
     justifyContent: "flex-end",
   },
 
   modalSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Cores.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === "ios" ? 40 : 24,
@@ -364,15 +352,15 @@ export const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: Cores.borda,
     alignSelf: "center",
     marginBottom: 16,
   },
 
   modalTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1A1A1A",
+    fontSize: 18,
+    fontWeight: "700",
+    color: Cores.texto,
     marginBottom: 16,
   },
 
@@ -380,39 +368,57 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#F0F0F0",
+    gap: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Cores.primariaSuave,
   },
 
   missaoItemSelected: {
-    backgroundColor: "#F0FBF7",
+    backgroundColor: Cores.primariaSuave,
     marginHorizontal: -20,
     paddingHorizontal: 20,
   },
 
+  missaoItemBody: {
+    flex: 1,
+  },
+
+  missaoItemTopo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
   missaoItemData: {
     fontSize: 15,
-    fontWeight: "500",
-    color: "#1A1A1A",
+    fontWeight: "600",
+    color: Cores.texto,
+  },
+
+  tagHoje: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    backgroundColor: Cores.primaria,
+  },
+
+  tagHojeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Cores.textoSobrePrimaria,
   },
 
   missaoItemDesc: {
     fontSize: 13,
-    color: "#888",
+    color: Cores.textoSuave,
     marginTop: 2,
   },
 
   missaoEmpty: {
     fontSize: 14,
-    color: "#AAA",
+    color: Cores.textoSuave,
     textAlign: "center",
     paddingVertical: 24,
-  },
-
-  missaoItemCheck: {
-    fontSize: 18,
-    color: VERDE,
-    fontWeight: "600",
   },
 });
