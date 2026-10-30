@@ -11,12 +11,6 @@ const sombra = {
 
 export const styles = StyleSheet.create({
   /* Topo */
-  marca: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Cores.marinho,
-    letterSpacing: -0.5,
-  },
   saudacao: {
     fontSize: 30,
     fontWeight: '700',

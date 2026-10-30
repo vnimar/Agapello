@@ -132,9 +132,7 @@ const Home: React.FC = () => {
 
   return (
     <ScreenWrapper scrollable={true} backgroundColor={Cores.fundo}>
-      <Header showLogo={false}>
-        <Text style={styles.marca}>Agapello</Text>
-      </Header>
+      <Header title="Agapello" />
 
       <Text style={styles.saudacao}>Olá, {primeiroNome}</Text>
 

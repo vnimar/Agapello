@@ -16,7 +16,7 @@ import {
   getFrequenciaServos,
   FrequenciaServoResumo,
 } from "../../services/frequencia/frequencia";
-import Header, { headerStyles } from "../../../components/Header";
+import Header from "../../../components/Header";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -370,11 +370,7 @@ export default function ServosScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <Header>
-        <View style={styles.headerTexts}>
-          <Text style={headerStyles.title}>Servos</Text>
-        </View>
-      </Header>
+      <Header title="Servos" />
 
       {/* Barra de busca e filtro */}
       <View style={styles.searchArea}>

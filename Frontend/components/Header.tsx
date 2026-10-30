@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
+import { Cores } from '../constants/theme';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -14,7 +15,7 @@ function iniciais(nome: string) {
   return nome.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
 }
 
-export default function Header({ children, title, showLogo = true, showConta = true }: HeaderProps) {
+export default function Header({ children, title, showLogo = false, showConta = true }: HeaderProps) {
   const { usuario } = useAuth();
 
   return (
@@ -61,10 +62,12 @@ export const headerStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  // Mesmo estilo da marca na Home, para as telas ficarem iguais
   title: {
-    fontSize: 20,
-    color: '#1E3A8A',
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '800',
+    color: Cores.marinho,
+    letterSpacing: -0.5,
   },
   logo: {
     width: 36,
@@ -76,10 +79,10 @@ export const headerStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#043673',
+    backgroundColor: Cores.marinho,
   },
   entrarText: {
-    color: '#FFFFFF',
+    color: Cores.textoSobrePrimaria,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -88,12 +91,12 @@ export const headerStyles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#043673',
+    backgroundColor: Cores.marinho,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: Cores.textoSobrePrimaria,
     fontSize: 13,
     fontWeight: '700',
   },

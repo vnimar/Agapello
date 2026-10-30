@@ -62,18 +62,6 @@ export const styles = StyleSheet.create({
     paddingTop: 8,
   },
 
-  headerTexts: {
-    flexDirection: "column",
-  },
-
-  headerSub: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "500",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-
   title: {
     fontSize: 24,
     fontWeight: "700",
