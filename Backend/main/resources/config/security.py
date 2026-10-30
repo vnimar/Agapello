@@ -135,11 +135,13 @@ _credenciais_invalidas = HTTPException(
 
 
 def get_optional_user(
+    request: Request,
     credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> Optional[UsuarioLogado]:
     """
     Usuário logado, ou None se a requisição veio sem token.
     Token presente mas inválido/expirado → 401 (o app então faz logout).
+    Fica também em request.state.usuario para o log de auditoria.
     """
     if credenciais is None:
         return None
@@ -153,6 +155,7 @@ def get_optional_user(
     usuario = buscar_usuario_ativo(id_usuario)
     if not usuario:
         raise _credenciais_invalidas
+    request.state.usuario = usuario
     return usuario
 
 
