@@ -137,7 +137,7 @@ const Home: React.FC = () => {
         <Text style={styles.marca}>Agapello</Text>
       </Header>
 
-      <Text style={styles.saudacao}>Olá, {primeiroNome} 👋</Text>
+      <Text style={styles.saudacao}>Olá, {primeiroNome}</Text>
 
       {/* Próxima missão */}
       <View style={styles.missaoCard}>
