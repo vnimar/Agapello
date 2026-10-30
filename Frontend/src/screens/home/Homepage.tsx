@@ -8,7 +8,8 @@ import ScreenWrapper from '../../../components/ScreenWrapper';
 import Header from '../../../components/Header';
 import {Cores} from '@/constants/theme';
 import {styles} from './Home.styles';
-import {getMissoes, getProximaMissao, Missao, PublicoMissao} from '../../services/missao/missao';
+import {ICONE_PUBLICO} from '@/constants/missao';
+import {getMissoes, getProximaMissao, Missao} from '../../services/missao/missao';
 import {buscarMeuResumo, MeuResumo} from '../../services/auth/auth';
 import {useAuth} from '../../context/AuthContext';
 
@@ -16,12 +17,6 @@ const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const PROXIMOS_VISIVEIS = 6;
 
 type NomeIcone = React.ComponentProps<typeof Ionicons>['name'];
-
-const ICONE_PUBLICO: Record<PublicoMissao, NomeIcone> = {
-  servos: 'people-outline',
-  cursistas: 'school-outline',
-  ambos: 'people-circle-outline',
-};
 
 function separarData(data: string) {
   const [ano, mes, dia] = data.slice(0, 10).split('-').map(Number);
@@ -128,6 +123,10 @@ const Home: React.FC = () => {
     // Recarrega ao trocar de usuário (entrar/sair), para usar o token certo
   }, [usuario?.id]);
 
+  // Abre o calendário já no dia da missão
+  const abrirNoCalendario = (m: Missao | null) =>
+    router.push(m ? {pathname: '/calendario', params: {data: m.data.slice(0, 10)}} : '/calendario');
+
   const dias = missao ? textoDias(diasRestantes(missao.data)) : '';
   const temHorario = missao?.horario.includes(':');
 
@@ -160,7 +159,7 @@ const Home: React.FC = () => {
         ) : (
           <Text style={styles.missaoTitulo}>Nenhuma missão marcada</Text>
         )}
-        <TouchableOpacity style={styles.missaoBotao} onPress={() => router.push('/calendario')}>
+        <TouchableOpacity style={styles.missaoBotao} onPress={() => abrirNoCalendario(missao)}>
           <Text style={styles.missaoBotaoTexto}>Ver no calendário</Text>
         </TouchableOpacity>
       </View>
@@ -195,7 +194,7 @@ const Home: React.FC = () => {
               <TouchableOpacity
                 key={m.id_missao}
                 style={styles.proximoCard}
-                onPress={() => router.push('/calendario')}
+                onPress={() => abrirNoCalendario(m)}
               >
                 <View style={styles.proximoTopo}>
                   <Ionicons name={ICONE_PUBLICO[m.publico] ?? 'calendar-outline'} size={24} color={Cores.primaria} />
