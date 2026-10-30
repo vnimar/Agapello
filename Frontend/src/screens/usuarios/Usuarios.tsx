@@ -5,7 +5,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   Share,
@@ -285,7 +284,7 @@ function FormUsuario({
   return (
     <Modal visible={visivel} animationType="slide" presentationStyle="pageSheet" onRequestClose={onFechar}>
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
             <Text style={styles.titulo}>{usuario ? "Editar usuário" : "Novo usuário"}</Text>
 

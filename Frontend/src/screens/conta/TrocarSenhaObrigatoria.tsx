@@ -8,7 +8,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, router } from "expo-router";
@@ -52,7 +51,7 @@ export default function TrocarSenhaObrigatoria() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Crie sua senha</Text>
           <Text style={styles.subtitle}>

@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
+import { Cores } from "@/constants/theme";
 
-const TEXTO = "#1A2C3E";
-const CINZA = "#6C757D";
+const TEXTO = Cores.texto;
+const CINZA = Cores.textoSuave;
 
 export { STATUS_CORES } from "@/constants/frequencia";
 
@@ -20,23 +21,47 @@ export const resumoStyles = StyleSheet.create({
   fogoRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 8,
   },
   fogoEmoji: {
-    fontSize: 44,
-    marginRight: 14,
+    fontSize: 40,
+    marginRight: 12,
+  },
+  fogoTextos: {
+    flex: 1,
   },
   fogoApagado: {
     opacity: 0.25,
   },
   fogoNumero: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "700",
     color: TEXTO,
+  },
+  fogoLabel: {
+    fontSize: 13,
+    color: CINZA,
   },
   fogoTexto: {
     fontSize: 13,
     color: CINZA,
-    marginTop: 2,
+    marginTop: 8,
+  },
+  recorde: {
+    backgroundColor: Cores.primariaSuave,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  recordeNumero: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Cores.marinho,
+  },
+  recordeLabel: {
+    fontSize: 11,
+    color: CINZA,
   },
 
   // Frequência
@@ -70,7 +95,7 @@ export const resumoStyles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: Cores.borda,
   },
   missaoData: {
     fontSize: 13,
@@ -94,7 +119,7 @@ export const resumoStyles = StyleSheet.create({
   },
   verTodas: {
     fontSize: 14,
-    color: "#649AFA",
+    color: Cores.primaria,
     fontWeight: "600",
     textAlign: "center",
     marginTop: 12,

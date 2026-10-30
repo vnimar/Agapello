@@ -8,17 +8,32 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Cores } from "@/constants/theme";
 import { useAuth } from "../../context/AuthContext";
 import { PERFIL_LABEL, PERFIS_ADMIN, temPerfil, trocarSenha } from "../../services/auth/auth";
 import { authStyles as styles } from "../login/Login.styles";
 import MeuResumo from "./MeuResumo";
 
+type NomeIcone = React.ComponentProps<typeof Ionicons>["name"];
+
 function iniciais(nome: string) {
   return nome.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join("");
+}
+
+function Acao({ icone, texto, onPress, ultima }: { icone: NomeIcone; texto: string; onPress: () => void; ultima?: boolean }) {
+  return (
+    <TouchableOpacity style={[styles.acao, ultima && styles.cardRowLast]} onPress={onPress}>
+      <View style={styles.acaoIcone}>
+        <Ionicons name={icone} size={18} color={Cores.primaria} />
+      </View>
+      <Text style={styles.acaoTexto}>{texto}</Text>
+      <Ionicons name="chevron-forward" size={18} color={Cores.iconeInativo} />
+    </TouchableOpacity>
+  );
 }
 
 export default function ContaScreen() {
@@ -85,10 +100,11 @@ export default function ContaScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <TouchableOpacity style={styles.fechar} onPress={fechar} hitSlop={12}>
-        <Text style={styles.fecharText}>✕</Text>
+        <Ionicons name="close" size={26} color={Cores.textoSuave} />
       </TouchableOpacity>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* padding também no Android: com edge-to-edge a tela não encolhe com o teclado */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{iniciais(usuario.nome)}</Text>
@@ -114,18 +130,6 @@ export default function ContaScreen() {
             </View>
           </View>
 
-          {temPerfil(usuario, ["administrador"]) && (
-            <TouchableOpacity style={styles.btnPrimary} onPress={() => router.push("/usuarios")}>
-              <Text style={styles.btnPrimaryText}>Gerenciar usuários</Text>
-            </TouchableOpacity>
-          )}
-
-          {temPerfil(usuario, PERFIS_ADMIN) && (
-            <TouchableOpacity style={styles.btnPrimary} onPress={() => router.push("/importar-pastas")}>
-              <Text style={styles.btnPrimaryText}>Importar pastas</Text>
-            </TouchableOpacity>
-          )}
-
           {trocando ? (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Trocar senha</Text>
@@ -145,7 +149,7 @@ export default function ContaScreen() {
                 disabled={salvando}
               >
                 {salvando ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
                 ) : (
                   <Text style={styles.btnPrimaryText}>Salvar nova senha</Text>
                 )}
@@ -155,9 +159,15 @@ export default function ContaScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={styles.btnSecondary} onPress={() => setTrocando(true)}>
-              <Text style={styles.btnSecondaryText}>Trocar senha</Text>
-            </TouchableOpacity>
+            <View style={[styles.card, { paddingVertical: 4 }]}>
+              {temPerfil(usuario, ["administrador"]) && (
+                <Acao icone="people-outline" texto="Gerenciar usuários" onPress={() => router.push("/usuarios")} />
+              )}
+              {temPerfil(usuario, PERFIS_ADMIN) && (
+                <Acao icone="folder-open-outline" texto="Importar pastas" onPress={() => router.push("/importar-pastas")} />
+              )}
+              <Acao icone="key-outline" texto="Trocar senha" onPress={() => setTrocando(true)} ultima />
+            </View>
           )}
 
           <TouchableOpacity style={styles.btnDanger} onPress={confirmarSair}>

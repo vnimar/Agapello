@@ -1,16 +1,26 @@
 import { Platform, StyleSheet } from "react-native";
+import { Cores } from "@/constants/theme";
 
+// Usado por Importar pastas e Usuários (ainda no visual antigo)
 export const AZUL_AGAPELLO = "#043673";
-const TEXTO = "#1A2C3E";
 
+const sombra = {
+  shadowColor: Cores.sombra,
+  shadowOpacity: 0.08,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
+};
+
+// Login, Meu perfil e Crie sua senha (paleta Cores)
 export const authStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: Cores.fundo,
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 24,
     justifyContent: "center",
   },
@@ -19,97 +29,100 @@ export const authStyles = StyleSheet.create({
   fechar: {
     alignSelf: "flex-end",
     marginTop: 4,
-    marginRight: 16,
+    marginRight: 12,
     padding: 8,
   },
-  fecharText: {
-    fontSize: 20,
-    color: "#6C757D",
-  },
   logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
+    width: 88,
+    height: 88,
+    borderRadius: 22,
     alignSelf: "center",
     marginBottom: 16,
   },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    color: TEXTO,
+    fontWeight: "800",
+    color: Cores.marinho,
+    letterSpacing: -0.5,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
-    color: "#6C757D",
+    color: Cores.textoSuave,
     textAlign: "center",
     marginTop: 6,
     marginBottom: 24,
   },
   label: {
     fontSize: 13,
-    fontWeight: "500",
-    color: "#6C757D",
+    fontWeight: "600",
+    color: Cores.textoSuave,
     marginTop: 14,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: Cores.borda,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
     fontSize: 15,
-    color: TEXTO,
+    color: Cores.texto,
   },
-  senhaRow: {
+  // Campo com ícone à esquerda (e botão à direita na senha)
+  campo: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: Cores.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    paddingHorizontal: 14,
   },
-  senhaInput: {
+  campoIcone: {
+    marginRight: 10,
+  },
+  campoInput: {
     flex: 1,
+    paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    fontSize: 15,
+    color: Cores.texto,
   },
-  mostrar: {
-    position: "absolute",
-    right: 12,
-    padding: 4,
-  },
-  mostrarText: {
-    fontSize: 13,
-    color: "#649AFA",
-    fontWeight: "600",
+  campoAcao: {
+    paddingLeft: 10,
+    paddingVertical: 6,
   },
   btnPrimary: {
-    backgroundColor: AZUL_AGAPELLO,
+    backgroundColor: Cores.primaria,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: "center",
     marginTop: 24,
   },
   btnPrimaryText: {
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
     fontSize: 16,
     fontWeight: "600",
   },
   btnSecondary: {
-    backgroundColor: "#F1F3F5",
+    backgroundColor: Cores.primariaSuave,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: "center",
     marginTop: 12,
   },
   btnSecondaryText: {
-    color: TEXTO,
+    color: Cores.marinho,
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   btnDanger: {
     backgroundColor: "#FCEBEB",
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 20,
   },
   btnDangerText: {
     color: "#A32D2D",
@@ -121,50 +134,53 @@ export const authStyles = StyleSheet.create({
   },
   dica: {
     fontSize: 13,
-    color: "#9CA3AF",
+    color: Cores.textoSuave,
     textAlign: "center",
     marginTop: 20,
   },
 
   // ── Conta ──
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: AZUL_AGAPELLO,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Cores.marinho,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
     marginBottom: 12,
   },
   avatarText: {
-    color: "#FFFFFF",
-    fontSize: 26,
+    color: Cores.textoSobrePrimaria,
+    fontSize: 28,
     fontWeight: "700",
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.card,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
     padding: 16,
-    marginTop: 20,
+    marginTop: 16,
+    ...sombra,
   },
   cardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: Cores.borda,
   },
   cardRowLast: {
     borderBottomWidth: 0,
   },
   cardKey: {
     fontSize: 14,
-    color: "#6C757D",
+    color: Cores.textoSuave,
   },
   cardValue: {
     fontSize: 14,
-    color: TEXTO,
+    color: Cores.texto,
     fontWeight: "500",
     flexShrink: 1,
     textAlign: "right",
@@ -172,8 +188,31 @@ export const authStyles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: TEXTO,
+    fontWeight: "700",
+    color: Cores.texto,
     marginBottom: 4,
+  },
+  // Linha de ação (ícone + texto + seta), como num menu de ajustes
+  acao: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Cores.borda,
+  },
+  acaoIcone: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Cores.primariaSuave,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  acaoTexto: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: Cores.texto,
   },
 });

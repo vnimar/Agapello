@@ -9,10 +9,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Cores } from "@/constants/theme";
 import { useAuth } from "../../context/AuthContext";
 import { authStyles as styles } from "./Login.styles";
 
@@ -47,41 +48,47 @@ export default function LoginScreen() {
       {/* Com login obrigatório não há para onde voltar sem entrar */}
       {!loginObrigatorio && (
         <TouchableOpacity style={styles.fechar} onPress={fechar} hitSlop={12}>
-          <Text style={styles.fecharText}>✕</Text>
+          <Ionicons name="close" size={26} color={Cores.textoSuave} />
         </TouchableOpacity>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* Com edge-to-edge o Android não redimensiona a tela quando o teclado
+          abre, então o padding precisa valer nas duas plataformas */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Image source={require("../../../assets/images/icon.png")} style={styles.logo} />
           <Text style={styles.title}>Entrar no Agapello</Text>
           <Text style={styles.subtitle}>Use o email e a senha da sua conta</Text>
 
           <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="seuemail@exemplo.com"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="username"
-            returnKeyType="next"
-            onSubmitEditing={() => senhaRef.current?.focus()}
-          />
+          <View style={styles.campo}>
+            <Ionicons name="mail-outline" size={20} color={Cores.iconeInativo} style={styles.campoIcone} />
+            <TextInput
+              style={styles.campoInput}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="seuemail@exemplo.com"
+              placeholderTextColor={Cores.iconeInativo}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="username"
+              returnKeyType="next"
+              onSubmitEditing={() => senhaRef.current?.focus()}
+            />
+          </View>
 
           <Text style={styles.label}>Senha</Text>
-          <View style={styles.senhaRow}>
+          <View style={styles.campo}>
+            <Ionicons name="lock-closed-outline" size={20} color={Cores.iconeInativo} style={styles.campoIcone} />
             <TextInput
               ref={senhaRef}
-              style={[styles.input, styles.senhaInput]}
+              style={styles.campoInput}
               value={senha}
               onChangeText={setSenha}
               placeholder="Sua senha"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Cores.iconeInativo}
               secureTextEntry={!mostrarSenha}
               autoCapitalize="none"
               autoComplete="password"
@@ -89,8 +96,13 @@ export default function LoginScreen() {
               returnKeyType="go"
               onSubmitEditing={confirmar}
             />
-            <TouchableOpacity style={styles.mostrar} onPress={() => setMostrarSenha((v) => !v)}>
-              <Text style={styles.mostrarText}>{mostrarSenha ? "Ocultar" : "Mostrar"}</Text>
+            <TouchableOpacity
+              style={styles.campoAcao}
+              onPress={() => setMostrarSenha((v) => !v)}
+              hitSlop={8}
+              accessibilityLabel={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+            >
+              <Ionicons name={mostrarSenha ? "eye-off-outline" : "eye-outline"} size={20} color={Cores.primaria} />
             </TouchableOpacity>
           </View>
 
@@ -100,7 +112,7 @@ export default function LoginScreen() {
             disabled={entrando}
           >
             {entrando ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
             ) : (
               <Text style={styles.btnPrimaryText}>Entrar</Text>
             )}

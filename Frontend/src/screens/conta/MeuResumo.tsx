@@ -47,16 +47,20 @@ export default function MeuResumo() {
         <Text style={authStyles.sectionTitle}>Foguinho</Text>
         <View style={styles.fogoRow}>
           <Text style={[styles.fogoEmoji, !foguinho.chama_acesa && styles.fogoApagado]}>🔥</Text>
-          <View>
-            <Text style={styles.fogoNumero}>
-              {foguinho.sequencia_atual} {foguinho.sequencia_atual === 1 ? "presença" : "presenças"} seguidas
-            </Text>
-            <Text style={styles.fogoTexto}>
-              {foguinho.chama_acesa ? "Não falte para manter a chama acesa" : "Venha na próxima missão para acender"}
-              {"\n"}Recorde: {foguinho.recorde}
+          <View style={styles.fogoTextos}>
+            <Text style={styles.fogoNumero}>{foguinho.sequencia_atual}</Text>
+            <Text style={styles.fogoLabel}>
+              {foguinho.sequencia_atual === 1 ? "presença seguida" : "presenças seguidas"}
             </Text>
           </View>
+          <View style={styles.recorde}>
+            <Text style={styles.recordeNumero}>{foguinho.recorde}</Text>
+            <Text style={styles.recordeLabel}>recorde</Text>
+          </View>
         </View>
+        <Text style={styles.fogoTexto}>
+          {foguinho.chama_acesa ? "Não falte para manter a chama acesa" : "Venha na próxima missão para acender"}
+        </Text>
       </View>
 
       <View style={authStyles.card}>
@@ -66,7 +70,7 @@ export default function MeuResumo() {
         ) : (
           <>
             <Text style={styles.percentual}>{Math.round(frequencia.percentual_presenca)}%</Text>
-            <Text style={styles.fogoTexto}>de presença (justificada conta como presença)</Text>
+            <Text style={styles.fogoLabel}>de presença (justificada conta como presença)</Text>
             <View style={styles.contadores}>
               <Contador status="Presente" valor={frequencia.presente} />
               <Contador status="Justificada" valor={frequencia.justificada} />
