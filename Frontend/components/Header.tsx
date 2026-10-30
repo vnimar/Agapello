@@ -54,7 +54,8 @@ export const headerStyles = StyleSheet.create({
     paddingVertical: 6,
     paddingTop: 6,
     paddingBottom: 15,
-    backgroundColor: '#F4F6F8',
+    // Herda o fundo da tela (ScreenWrapper)
+    backgroundColor: 'transparent',
   },
   leftSection: {
     flex: 1,

@@ -4,13 +4,11 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Cores } from '@/constants/theme';
 import { useAuth } from '@/src/context/AuthContext';
 
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const { usuario, carregando, loginObrigatorio, cuidaDosServos } = useAuth();
 
   // Ainda lendo o token salvo: não monta as telas, senão elas chamam a API
@@ -40,7 +38,9 @@ export default function TabLayout() {
     return (
     <Tabs
         screenOptions={{
-            tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+            tabBarActiveTintColor: Cores.primaria,
+            tabBarInactiveTintColor: Cores.iconeInativo,
+            tabBarStyle: { backgroundColor: Cores.card, borderTopColor: Cores.borda },
             headerShown: false,
             tabBarButton: HapticTab,
             }}>
