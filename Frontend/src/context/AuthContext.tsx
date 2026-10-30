@@ -14,8 +14,7 @@ import {
   apagarToken,
 } from "../services/auth/auth";
 
-// Enquanto o backend não exige login (LOGIN_OBRIGATORIO), sem sessão o app
-// funciona como antes. Com sessão, o token vai em todas as chamadas e o que
+// Com sessão, o token vai em todas as chamadas e o que
 // aparece depende do perfil.
 
 const CHAVE_USUARIO = "agapello_auth_usuario";
