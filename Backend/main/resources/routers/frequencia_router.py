@@ -24,14 +24,16 @@ router = APIRouter(prefix="/frequencia", tags=["Frequência"], dependencies=[Dep
 
 
 def _verificar_missao(cursor, id_missao: int):
-    """A missão precisa existir e já ter acontecido (ou ser hoje)."""
+    """A missão precisa existir, contar na frequência e já ter acontecido (ou ser hoje)."""
     cursor.execute(
-        "SELECT data > CURRENT_DATE FROM missao WHERE id_missao = %s",
+        "SELECT data > CURRENT_DATE, conta_frequencia FROM missao WHERE id_missao = %s",
         (id_missao,)
     )
     linha = cursor.fetchone()
     if not linha:
         raise HTTPException(status_code=404, detail="Missão não encontrada.")
+    if not linha[1]:
+        raise HTTPException(status_code=400, detail="Essa missão não conta na frequência e não tem chamada.")
     if linha[0]:
         raise HTTPException(
             status_code=400,
@@ -134,8 +136,9 @@ def get_missoes_com_frequencia():
                             WHERE f.id_missao = m.id_missao
                         ) AS tem_frequencia
                     FROM missao m
-                    -- Só as que já aconteceram (ou são hoje): a futura não recebe chamada
+                    -- Só as que contam e já aconteceram (ou são hoje): a futura não recebe chamada
                     WHERE m.data <= CURRENT_DATE
+                      AND m.conta_frequencia
                     ORDER BY m.data DESC, m.id_missao
                 """)
                 return MissoesComFrequenciaResponse(data=cursor.fetchall())

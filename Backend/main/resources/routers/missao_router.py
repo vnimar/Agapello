@@ -11,6 +11,7 @@ from ..schemas.missao_schema import (
     MissaoImportRequest,
     MissaoImportItem,
     MissaoImportResponse,
+    MissaoContaFrequencia,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,31 @@ def criar_missao(body: MissaoCreate):
         raise HTTPException(status_code=500, detail="Erro interno no servidor.")
 
     return _formatar_missao(missao)
+
+# Antes do PUT /{id_missao}: senão "conta-frequencia" cairia nele como id
+@router.put("/conta-frequencia", dependencies=[Depends(verify_admin)])
+def marcar_conta_frequencia(body: MissaoContaFrequencia):
+    """
+    Todas as missões ficam no calendário; só as que contam entram na chamada,
+    na porcentagem e no foguinho. Os registros de chamada já feitos ficam guardados.
+    """
+    if set(body.ids_conta) & set(body.ids_nao_conta):
+        raise HTTPException(status_code=400, detail="A mesma missão não pode contar e não contar.")
+
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE missao SET conta_frequencia = (id_missao = ANY(%s))
+                    WHERE id_missao = ANY(%s) OR id_missao = ANY(%s)
+                """, (body.ids_conta, body.ids_conta, body.ids_nao_conta))
+                atualizadas = cursor.rowcount
+
+    except Exception as e:
+        logger.error(f"Erro ao marcar missões que contam na frequência: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no servidor.")
+
+    return {"atualizadas": atualizadas}
 
 @router.put("/{id_missao}", response_model=MissaoResponse, dependencies=[Depends(verify_admin)])
 def atualizar_missao(id_missao: int, body: MissaoUpdate):

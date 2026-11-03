@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { styles } from "./Calendario.styles";
 import { getMissoes, Missao } from "../../services/missao/missao";
 import { MissaoEditModal } from "./CalendarioAdmin";
+import { ContaFrequenciaModal } from "./ContaFrequenciaModal";
 import { useAuth } from "../../context/AuthContext";
 import Header, { headerStyles } from '../../../components/Header';
 import { Cores } from "@/constants/theme";
@@ -89,6 +90,7 @@ export default function CalendarioScreen() {
   const [modoEdicao, setModoEdicao] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [missaoEditando, setMissaoEditando] = useState<Missao | null>(null);
+  const [contaVisible, setContaVisible] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -200,6 +202,11 @@ export default function CalendarioScreen() {
           <Text style={styles.missionDescription}>{item.descricao}</Text>
           {modoEdicao && <Text style={styles.missionEditHint}>Editar ›</Text>}
         </View>
+        {!item.conta_frequencia && (
+          <View style={styles.tagLivre}>
+            <Text style={styles.tagLivreText}>Presença livre</Text>
+          </View>
+        )}
         <View style={styles.missionDetail}>
           <Ionicons name="time-outline" size={15} color={Cores.textoSuave} />
           <Text style={styles.missionDetailText}>{item.horario}</Text>
@@ -358,6 +365,12 @@ export default function CalendarioScreen() {
               <Text style={styles.addMissionText}>+ Nova missão neste dia</Text>
             </TouchableOpacity>
           )}
+          {modoEdicao && (
+            <TouchableOpacity style={styles.contaFrequenciaButton} onPress={() => setContaVisible(true)}>
+              <Ionicons name="checkmark-done-outline" size={18} color={Cores.primaria} />
+              <Text style={styles.addMissionText}>O que conta na frequência</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -367,6 +380,17 @@ export default function CalendarioScreen() {
         dataInicial={selectedKey}
         onClose={() => setEditVisible(false)}
         onSaved={aoSalvar}
+      />
+
+      <ContaFrequenciaModal
+        visible={contaVisible}
+        missoes={missoes}
+        ano={currentYear}
+        onClose={() => setContaVisible(false)}
+        onSaved={() => {
+          setContaVisible(false);
+          carregar();
+        }}
       />
     </SafeAreaView>
   );

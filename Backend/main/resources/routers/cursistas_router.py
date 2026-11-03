@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 exigir_cursistas = require_perfil(*PERFIS_CURSISTAS)
 router = APIRouter(prefix="/cursistas", tags=["Cursistas"], dependencies=[Depends(exigir_cursistas)])
 
-# Contam para os cursistas só a Formação de Cursistas e o Encontro Querigmático,
-# reconhecidos pelo nome (fn_missao_de_cursista, migration 012).
+# Contam para os cursistas só a Formação de Cursistas, o Encontro Querigmático e a
+# Confraternização, reconhecidos pelo nome (fn_missao_de_cursista, migrations 012/013),
+# e desde que a missão conte na frequência.
 
 # Cursistas que entram na chamada: os do ano da missão que já passaram pelo encontro
 CURSISTA_DA_CHAMADA = """
@@ -52,7 +53,7 @@ def _missao_da_chamada(cursor, id_missao: int) -> dict:
     cursor.execute("""
         SELECT id_missao, data, descricao, data > CURRENT_DATE AS futura
         FROM missao
-        WHERE id_missao = %s AND fn_missao_de_cursista(descricao)
+        WHERE id_missao = %s AND fn_missao_de_cursista(descricao) AND conta_frequencia
     """, (id_missao,))
     missao = cursor.fetchone()
     if not missao:
@@ -67,7 +68,7 @@ def _missao_da_chamada(cursor, id_missao: int) -> dict:
 
 @router.get("/chamada/missoes", response_model=MissoesCursistaResponse)
 def listar_missoes(usuario: UsuarioLogado = Depends(exigir_cursistas)):
-    """Formações e encontro do ano até hoje, da mais recente para a mais antiga."""
+    """Formações, encontro e confraternizações do ano até hoje, da mais recente para a mais antiga."""
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             ids = [c["id_comunidade"] for c in _comunidades(cursor, usuario)]
@@ -83,6 +84,7 @@ def listar_missoes(usuario: UsuarioLogado = Depends(exigir_cursistas)):
                     ) AS tem_frequencia
                 FROM missao m
                 WHERE fn_missao_de_cursista(m.descricao)
+                  AND m.conta_frequencia
                   AND m.data <= CURRENT_DATE
                   AND EXTRACT(YEAR FROM m.data) = EXTRACT(YEAR FROM CURRENT_DATE)
                 ORDER BY m.data DESC, m.id_missao

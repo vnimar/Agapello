@@ -269,4 +269,30 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
     color: Cores.primaria,
   },
+  contaFrequenciaButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: Cores.primariaSuave,
+  },
+  // Missão que não conta na frequência
+  tagLivre: {
+    alignSelf: "flex-start",
+    backgroundColor: Cores.fundo,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  tagLivreText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Cores.textoSuave,
+  },
 });

@@ -77,3 +77,11 @@ export function importarMissoes(missoes: MissaoInput[], confirmar: boolean) {
         }
     );
     }
+
+// Marca de uma vez o que conta (ou não) na frequência; só as alteradas
+export function marcarContaFrequencia(ids_conta: number[], ids_nao_conta: number[]) {
+    return apiRequest<{ atualizadas: number }>("/missao/conta-frequencia", {
+        method: "PUT",
+        body: JSON.stringify({ ids_conta, ids_nao_conta }),
+    });
+    }

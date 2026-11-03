@@ -17,6 +17,12 @@ class MissaoResponse(BaseModel):
     observacao: Optional[str] = None
 
 
+class MissaoContaFrequencia(BaseModel):
+    """Marca de uma vez quais missões contam (ou não) na frequência."""
+    ids_conta: list[int] = []
+    ids_nao_conta: list[int] = []
+
+
 class MissaoCreate(BaseModel):
     data: date
     descricao: str = Field(min_length=1, max_length=200)

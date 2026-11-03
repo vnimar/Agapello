@@ -26,6 +26,7 @@ ROTAS = [
     ("GET", "/missao/ultimas", None, TODOS),
     ("POST", "/missao/", {}, ADMIN_CALENDARIO),
     ("PUT", f"/missao/{INEXISTENTE}", {}, ADMIN_CALENDARIO),
+    ("PUT", "/missao/conta-frequencia", {"ids_conta": [INEXISTENTE]}, ADMIN_CALENDARIO),
     ("DELETE", f"/missao/{INEXISTENTE}", None, ADMIN_CALENDARIO),
     ("POST", "/missao/importar", {}, ADMIN_CALENDARIO),
 
