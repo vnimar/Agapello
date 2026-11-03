@@ -166,8 +166,8 @@ export default function GerenciarCursistasScreen() {
                 Faltaram no encontro ({faltosos.length})
               </Text>
               <Text style={[base.erroText, { marginBottom: 8 }]}>
-                Quem faltou a um dia ou aos dois é cortado. Desmarque quem fez o encontro em outro lugar
-                (e corrija a presença na chamada).
+                Quem faltou a um dia ou aos dois é cortado. Se a falta foi lançada por engano, corrija a
+                chamada do encontro e a pessoa sai desta lista.
               </Text>
               {faltosos.map((f) => {
                 const marcado = marcados.has(f.id_cursista);
