@@ -157,7 +157,7 @@ export default function GerenciarCursistasScreen() {
 
           <TouchableOpacity style={base.botao} onPress={() => router.push("/importar-cursistas")}>
             <Ionicons name="document-attach-outline" size={20} color={Cores.textoSobrePrimaria} />
-            <Text style={base.botaoText}>Importar planilha do encontro</Text>
+            <Text style={base.botaoText}>Importar planilha</Text>
           </TouchableOpacity>
 
           {faltosos.length > 0 && (
@@ -214,7 +214,7 @@ export default function GerenciarCursistasScreen() {
             <View style={local.vazio}>
               <Ionicons name="school-outline" size={40} color={Cores.iconeInativo} />
               <Text style={local.vazioTexto}>Nenhum cursista em {ano}.</Text>
-              <Text style={base.pastaPlanilha}>Importe a planilha do encontro para começar.</Text>
+              <Text style={base.pastaPlanilha}>Importe a planilha de cursistas para começar.</Text>
             </View>
           ) : (
             porComunidade.map(([comunidade, lista]) => (
