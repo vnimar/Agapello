@@ -32,6 +32,15 @@ interface Servo {
   pastas: string[];
 }
 
+type FaixaFreq = "boa" | "regular" | "critica";
+
+// Faixas do filtro: boa ≥ 75%, regular ≥ 50%, crítica abaixo disso
+const FAIXAS_FREQ: { value: FaixaFreq; label: string; indicator: string }[] = [
+  { value: "boa", label: "Boa", indicator: STATUS_CORES.Presente.forte },
+  { value: "regular", label: "Regular", indicator: STATUS_CORES.Justificada.forte },
+  { value: "critica", label: "Crítica", indicator: STATUS_CORES.Falta.forte },
+];
+
 // ─── Sub-componente: detalhes expandidos de um servo ──────────────────────────
 
 function ServoDetalhes({
@@ -143,7 +152,8 @@ export default function ServosScreen() {
 
   // Novos estados para busca e filtros
   const [searchText, setSearchText] = useState("");
-  const [filterFreq, setFilterFreq] = useState<string>("todas");
+  // Faixas de frequência selecionadas (vazio = todas)
+  const [filterFreq, setFilterFreq] = useState<FaixaFreq[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
 
   // Modal de filtro
@@ -216,14 +226,12 @@ export default function ServosScreen() {
     }
 
     // Filtro de frequência
-    if (filterFreq !== "todas") {
+    if (filterFreq.length > 0) {
       result = result.filter((s) => {
         const freq = frequencias[s.id]?.percentual_presenca;
         if (freq === null || freq === undefined) return false;
-        if (filterFreq === "boa") return freq >= 75;
-        if (filterFreq === "regular") return freq >= 50 && freq < 75;
-        if (filterFreq === "critica") return freq < 50;
-        return true;
+        const faixa: FaixaFreq = freq >= 75 ? "boa" : freq >= 50 ? "regular" : "critica";
+        return filterFreq.includes(faixa);
       });
     }
 
@@ -330,25 +338,31 @@ export default function ServosScreen() {
   };
 
   const clearFilters = () => {
-    setTempFreq("todas");
+    setTempFreq([]);
     setTempStatus("todos");
+  };
+
+  // Marca/desmarca uma faixa; com as três marcadas volta para "Todas"
+  const toggleTempFreq = (faixa: FaixaFreq) => {
+    setTempFreq((prev) => {
+      const next = prev.includes(faixa)
+        ? prev.filter((f) => f !== faixa)
+        : [...prev, faixa];
+      return next.length === FAIXAS_FREQ.length ? [] : next;
+    });
   };
 
   // Chips de filtros ativos
   const activeFilters = useMemo(() => {
     const chips: { key: string; label: string; onRemove: () => void }[] = [];
-    const freqLabels: Record<string, string> = {
-      boa: "Boa",
-      regular: "Regular",
-      critica: "Crítica",
-    };
-    if (filterFreq !== "todas") {
+    FAIXAS_FREQ.filter((f) => filterFreq.includes(f.value)).forEach((f) => {
       chips.push({
-        key: "freq",
-        label: freqLabels[filterFreq],
-        onRemove: () => setFilterFreq("todas"),
+        key: `freq-${f.value}`,
+        label: f.label,
+        onRemove: () =>
+          setFilterFreq((prev) => prev.filter((v) => v !== f.value)),
       });
-    }
+    });
     if (filterStatus !== "todos") {
       chips.push({
         key: "status",
@@ -359,8 +373,8 @@ export default function ServosScreen() {
     return chips;
   }, [filterFreq, filterStatus]);
 
-  const isAnyFilterActive = filterFreq !== "todas" || filterStatus !== "todos";
-  const activeFilterCount = (filterFreq !== "todas" ? 1 : 0) + (filterStatus !== "todos" ? 1 : 0);
+  const isAnyFilterActive = filterFreq.length > 0 || filterStatus !== "todos";
+  const activeFilterCount = filterFreq.length + (filterStatus !== "todos" ? 1 : 0);
 
   // Contador de servos
   const countText = useMemo(() => {
@@ -501,39 +515,49 @@ export default function ServosScreen() {
           {/* Frequência */}
           <Text style={styles.filterSectionTitle}>Frequência</Text>
           <View style={styles.filterOptionsRow}>
-            {[
-              { value: "todas", label: "Todas" },
-              { value: "boa", label: "Boa", indicator: STATUS_CORES.Presente.forte },
-              { value: "regular", label: "Regular", indicator: STATUS_CORES.Justificada.forte },
-              { value: "critica", label: "Crítica", indicator: STATUS_CORES.Falta.forte },
-            ].map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
+                tempFreq.length === 0 && styles.filterOptionActive,
+              ]}
+              onPress={() => setTempFreq([])}
+              activeOpacity={0.7}
+            >
+              <Text
                 style={[
-                  styles.filterOption,
-                  tempFreq === opt.value && styles.filterOptionActive,
+                  styles.filterOptionText,
+                  tempFreq.length === 0 && styles.filterOptionTextActive,
                 ]}
-                onPress={() => setTempFreq(opt.value)}
-                activeOpacity={0.7}
               >
-                {opt.indicator && (
+                Todas
+              </Text>
+            </TouchableOpacity>
+            {FAIXAS_FREQ.map((opt) => {
+              const ativo = tempFreq.includes(opt.value);
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.filterOption, ativo && styles.filterOptionActive]}
+                  onPress={() => toggleTempFreq(opt.value)}
+                  activeOpacity={0.7}
+                >
                   <View
                     style={[
                       styles.filterOptionDot,
                       { backgroundColor: opt.indicator },
                     ]}
                   />
-                )}
-                <Text
-                  style={[
-                    styles.filterOptionText,
-                    tempFreq === opt.value && styles.filterOptionTextActive,
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      ativo && styles.filterOptionTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Status */}
