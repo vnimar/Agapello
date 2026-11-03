@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { Cores } from "@/constants/theme";
+import { STATUS_CORES } from "@/constants/frequencia";
 
 // ─── Estilos globais ──────────────────────────────────────────────────────
 
@@ -271,6 +272,74 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: Cores.textoSobrePrimaria,
     fontWeight: "600",
+  },
+
+  // ─── Inativar / reativar ────────────────────────────────────────────────
+  modalBtnInativar: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: STATUS_CORES.Falta.forte,
+    alignItems: "center",
+  },
+
+  inativarAviso: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Cores.textoSuave,
+    marginBottom: 20,
+  },
+
+  inativarNome: {
+    color: Cores.texto,
+    fontWeight: "700",
+  },
+
+  inativarMotivo: {
+    minHeight: 72,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Cores.texto,
+    textAlignVertical: "top",
+    marginBottom: 16,
+  },
+
+  btnInativar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: STATUS_CORES.Falta.fundo,
+  },
+
+  btnInativarText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: STATUS_CORES.Falta.texto,
+  },
+
+  btnReativar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Cores.primariaSuave,
+  },
+
+  btnReativarText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Cores.primaria,
   },
 
   // ─── Cards e detalhes ─────────────────────────────

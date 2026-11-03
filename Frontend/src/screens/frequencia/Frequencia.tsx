@@ -92,11 +92,17 @@ export default function FrequenciaScreen() {
   const [busca, setBusca] = useState("");
   const [buscaMissao, setBuscaMissao] = useState("");
 
+  // Inativo só aparece na chamada em que já tem registro (de antes da saída)
+  const servosChamada = useMemo(() => {
+    const comRegistro = new Set(frequenciaExistente.map((f) => f.id_servo));
+    return servos.filter((s) => s.status !== "Inativo" || comRegistro.has(s.id));
+  }, [servos, frequenciaExistente]);
+
   const servosFiltrados = useMemo(() => {
-    if (!busca.trim()) return servos;
+    if (!busca.trim()) return servosChamada;
     const q = normalize(busca);
-    return servos.filter((s) => normalize(s.nome).includes(q));
-  }, [busca, servos]);
+    return servosChamada.filter((s) => normalize(s.nome).includes(q));
+  }, [busca, servosChamada]);
 
   // Filtra mantendo a ordem da API (da mais recente para a mais antiga)
   const missoesFiltradas = useMemo(() => {
@@ -113,7 +119,7 @@ export default function FrequenciaScreen() {
   };
 
   const servosRef = useRef<ServoNormalizado[]>([]);
-  servosRef.current = servos;
+  servosRef.current = servosChamada;
 
   // Selecionar missão e carregar frequência existente
   const selecionarMissao = useCallback(async (missao: Missao) => {
@@ -124,7 +130,9 @@ export default function FrequenciaScreen() {
     setBusca("");
 
     const initialAttendance: Record<number, StatusFrequencia | null> = {};
-    servosRef.current.forEach((s) => { initialAttendance[s.id] = "Falta"; });
+    servosRef.current
+      .filter((s) => s.status !== "Inativo")
+      .forEach((s) => { initialAttendance[s.id] = "Falta"; });
     setAttendance(initialAttendance);
 
     try {
@@ -312,7 +320,7 @@ export default function FrequenciaScreen() {
 
   const jaLancada = frequenciaExistente.length > 0;
   const podeEditar = !jaLancada || modoEdicao;
-  const todosPresentes = servos.length > 0 && contagem.presente === servos.length;
+  const todosPresentes = servosChamada.length > 0 && contagem.presente === servosChamada.length;
 
   // Render de cada servo
 
@@ -424,10 +432,10 @@ export default function FrequenciaScreen() {
           <View style={styles.listaTopo}>
             <Text style={styles.searchCount}>
               {busca.trim().length > 0
-                ? `${servosFiltrados.length} de ${servos.length} servos`
-                : `${servos.length} servos`}
+                ? `${servosFiltrados.length} de ${servosChamada.length} servos`
+                : `${servosChamada.length} servos`}
             </Text>
-            {podeEditar && servos.length > 0 && (
+            {podeEditar && servosChamada.length > 0 && (
               <TouchableOpacity
                 style={[styles.todosBtn, todosPresentes && styles.todosBtnFeito]}
                 onPress={marcarTodosPresentes}

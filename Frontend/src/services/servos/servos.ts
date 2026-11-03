@@ -10,3 +10,14 @@ export function getServos() {
 export function getServosById(id_servo: number) {
   return apiRequest(`/servos/${id_servo}`);
 }
+// Inativar (motivo opcional) ou reativar: só coord. geral e administrador
+export function putStatusServo(
+  id_servo: number,
+  status: "Ativo" | "Inativo",
+  motivo?: string
+) {
+  return apiRequest(`/servos/${id_servo}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status, motivo: motivo || null }),
+  });
+}

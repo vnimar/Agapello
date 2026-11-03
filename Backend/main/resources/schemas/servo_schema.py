@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 class ServoListItem(BaseModel):
     id: int
@@ -15,6 +15,11 @@ class ServoDetail(BaseModel):
     telefone: Optional[str] = None
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
+
+class ServoStatusUpdate(BaseModel):
+    """Inativar (com motivo opcional) ou reativar um servo."""
+    status: Literal["Ativo", "Inativo"]
+    motivo: Optional[str] = None
 
 # ── Minha conta: o próprio servo ─────────────────────────────────────────────
 

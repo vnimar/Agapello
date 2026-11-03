@@ -9,10 +9,12 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Servo.style";
-import { getServos } from "../../services/servos/servos";
+import { getServos, putStatusServo } from "../../services/servos/servos";
 import {
   getFrequenciaServos,
   FrequenciaServoResumo,
@@ -20,6 +22,7 @@ import {
 import Header from "../../../components/Header";
 import { Cores } from "@/constants/theme";
 import { STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
+import { useAuth } from "../../context/AuthContext";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -46,9 +49,11 @@ const FAIXAS_FREQ: { value: FaixaFreq; label: string; indicator: string }[] = [
 function ServoDetalhes({
   servo,
   resumo,
+  onAlterarStatus,
 }: {
   servo: Servo;
   resumo: FrequenciaServoResumo | null;
+  onAlterarStatus?: () => void; // só para quem pode inativar/reativar
 }) {
   const percentual = resumo?.percentual_presenca ?? null;
   const cor = corDaFrequencia(percentual);
@@ -136,6 +141,20 @@ function ServoDetalhes({
           </Text>
         </View>
       </View>
+
+      {onAlterarStatus && (
+        servo.status === "Inativo" ? (
+          <TouchableOpacity style={styles.btnReativar} onPress={onAlterarStatus} activeOpacity={0.7}>
+            <Ionicons name="refresh" size={16} color={Cores.primaria} />
+            <Text style={styles.btnReativarText}>Reativar servo</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.btnInativar} onPress={onAlterarStatus} activeOpacity={0.7}>
+            <Ionicons name="person-remove-outline" size={16} color={STATUS_CORES.Falta.texto} />
+            <Text style={styles.btnInativarText}>Inativar servo</Text>
+          </TouchableOpacity>
+        )
+      )}
     </View>
   );
 }
@@ -149,6 +168,12 @@ export default function ServosScreen() {
   >({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
+
+  // Inativação: servo escolhido, motivo (opcional) e envio
+  const [servoInativar, setServoInativar] = useState<Servo | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [salvandoStatus, setSalvandoStatus] = useState(false);
 
   // Novos estados para busca e filtros
   const [searchText, setSearchText] = useState("");
@@ -247,6 +272,42 @@ export default function ServosScreen() {
     setExpandedId((prev) => (prev === id ? null : id));
   }, []);
 
+  const salvarStatus = useCallback(
+    async (servo: Servo, status: "Ativo" | "Inativo", motivoSaida?: string) => {
+      setSalvandoStatus(true);
+      try {
+        await putStatusServo(servo.id, status, motivoSaida?.trim());
+        setServos((prev) => prev.map((s) => (s.id === servo.id ? { ...s, status } : s)));
+        setServoInativar(null);
+      } catch (err: any) {
+        Alert.alert("Erro", err?.message || "Não foi possível alterar o status.");
+      } finally {
+        setSalvandoStatus(false);
+      }
+    },
+    []
+  );
+
+  // Inativar pede o motivo no modal; reativar só confirma
+  const alterarStatus = useCallback(
+    (servo: Servo) => {
+      if (servo.status === "Inativo") {
+        Alert.alert(
+          "Reativar servo",
+          `${servo.nome} volta para a chamada e recupera o acesso ao app.`,
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Reativar", onPress: () => salvarStatus(servo, "Ativo") },
+          ]
+        );
+        return;
+      }
+      setMotivo("");
+      setServoInativar(servo);
+    },
+    [salvarStatus]
+  );
+
   function getInitials(nome: string) {
     return nome
       .split(" ")
@@ -314,13 +375,17 @@ export default function ServosScreen() {
 
           {isExpanded && (
             <View style={styles.details}>
-              <ServoDetalhes servo={item} resumo={resumo} />
+              <ServoDetalhes
+                servo={item}
+                resumo={resumo}
+                onAlterarStatus={isAdmin ? () => alterarStatus(item) : undefined}
+              />
             </View>
           )}
         </View>
       );
     },
-    [expandedId, toggleExpand, frequencias]
+    [expandedId, toggleExpand, frequencias, isAdmin, alterarStatus]
   );
 
   // Controle do modal de filtro
@@ -478,7 +543,7 @@ export default function ServosScreen() {
         data={filteredServos}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        extraData={{ expandedId, frequencias }}
+        extraData={{ expandedId, frequencias, isAdmin }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -608,6 +673,77 @@ export default function ServosScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Modal de inativação (motivo opcional) */}
+      <Modal
+        visible={servoInativar !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !salvandoStatus && setServoInativar(null)}
+      >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => !salvandoStatus && setServoInativar(null)}
+          >
+            <View />
+          </TouchableOpacity>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Inativar servo</Text>
+              <TouchableOpacity
+                onPress={() => setServoInativar(null)}
+                disabled={salvandoStatus}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={Cores.textoSuave} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inativarAviso}>
+              <Text style={styles.inativarNome}>{servoInativar?.nome}</Text> sai da chamada a
+              partir de hoje e perde o acesso ao app. O histórico fica guardado e o servo pode
+              ser reativado em até 2 anos.
+            </Text>
+
+            <Text style={styles.filterSectionTitle}>Motivo (opcional)</Text>
+            <TextInput
+              style={styles.inativarMotivo}
+              placeholder="Ex.: mudou de cidade"
+              placeholderTextColor={Cores.iconeInativo}
+              value={motivo}
+              onChangeText={setMotivo}
+              multiline
+              editable={!salvandoStatus}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalBtnClear}
+                onPress={() => setServoInativar(null)}
+                disabled={salvandoStatus}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalBtnClearText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBtnInativar}
+                onPress={() => servoInativar && salvarStatus(servoInativar, "Inativo", motivo)}
+                disabled={salvandoStatus}
+                activeOpacity={0.7}
+              >
+                {salvandoStatus ? (
+                  <ActivityIndicator color={Cores.textoSobrePrimaria} />
+                ) : (
+                  <Text style={styles.modalBtnApplyText}>Inativar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

@@ -4,9 +4,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from ..bd.db import get_connection
 import psycopg2
 import psycopg2.extras
-from ..schemas.servo_schema import ServoListItem, ServoDetail
+import psycopg2.errors
+from ..schemas.servo_schema import ServoListItem, ServoDetail, ServoStatusUpdate
 from ..schemas.auth_schema import UsuarioLogado
-from ..config.security import PERFIS_COORD_SERVOS, exigir_login, exigir_coord_servos
+from ..config.security import PERFIS_ADMIN, PERFIS_COORD_SERVOS, exigir_login, exigir_coord_servos, require_perfil
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +82,65 @@ def get_servo_by_id(
     except Exception as e:
         logger.error(f"Erro ao buscar servo {servo_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno.")
+
+
+# Inativar/reativar: só coord. geral e administrador
+@router.put("/{servo_id}/status", response_model=ServoDetail)
+def alterar_status(
+    servo_id: int,
+    body: ServoStatusUpdate,
+    usuario: UsuarioLogado = Depends(require_perfil(*PERFIS_ADMIN)),
+):
+    """
+    Ninguém é excluído: quem sai fica Inativo (some da chamada e perde o acesso)
+    e a saída fica em servo_afastamento. Ao voltar, o afastamento é fechado.
+    """
+    motivo = (body.motivo or "").strip() or None
+
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("SELECT status FROM servo WHERE id_servo = %s FOR UPDATE", (servo_id,))
+            linha = cursor.fetchone()
+            if not linha:
+                raise HTTPException(status_code=404, detail="Servo não encontrado.")
+            if linha[0] == body.status:
+                raise HTTPException(status_code=400, detail=f"O servo já está {body.status.lower()}.")
+
+            if body.status == "Inativo":
+                cursor.execute("""
+                    INSERT INTO servo_afastamento (id_servo, data_saida, motivo, registrado_por)
+                    VALUES (%s, CURRENT_DATE, %s, %s)
+                """, (servo_id, motivo, usuario.id))
+            else:
+                # A regra dos 2 anos é checada pelo banco (afastamento_prazo_retorno_check)
+                cursor.execute("""
+                    UPDATE servo_afastamento SET data_retorno = CURRENT_DATE
+                    WHERE id_servo = %s AND data_retorno IS NULL
+                """, (servo_id,))
+
+            cursor.execute("""
+                UPDATE servo SET status = %s WHERE id_servo = %s
+                RETURNING id_servo, nome, telefone, status, ano_ingresso
+            """, (body.status, servo_id))
+            servo = cursor.fetchone()
+
+    except HTTPException:
+        raise
+
+    except psycopg2.errors.CheckViolation:
+        raise HTTPException(
+            status_code=400,
+            detail="Passou o prazo de 2 anos desde a saída. O retorno precisa ser tratado com a coordenação."
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao alterar status do servo {servo_id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    return ServoDetail(
+        id=servo[0],
+        nome=servo[1],
+        telefone=servo[2],
+        status=servo[3],
+        ano_ingresso=servo[4],
+    )

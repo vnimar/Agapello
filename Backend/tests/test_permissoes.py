@@ -31,6 +31,7 @@ ROTAS = [
 
     # Servos e chamada de servos
     ("GET", "/servos/", None, COORD_SERVOS),
+    ("PUT", f"/servos/{INEXISTENTE}/status", {}, ADMIN_CALENDARIO),
     ("GET", "/frequencia/servos", None, COORD_SERVOS),
     ("GET", "/frequencia/missoes", None, COORD_SERVOS),
     ("GET", f"/frequencia/missao/{INEXISTENTE}", None, COORD_SERVOS),
