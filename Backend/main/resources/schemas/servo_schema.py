@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel
 from typing import Optional, List, Literal
 
@@ -5,6 +6,10 @@ class ServoListItem(BaseModel):
     id: int
     nome: str
     telefone: Optional[str] = None
+    email: Optional[str] = None
+    endereco: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    idade: Optional[int] = None  # calculada pelo banco (fn_idade), nunca guardada
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
     pastas: list[str]
@@ -13,6 +18,10 @@ class ServoDetail(BaseModel):
     id: int
     nome: str
     telefone: Optional[str] = None
+    email: Optional[str] = None
+    endereco: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    idade: Optional[int] = None
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
 

@@ -13,6 +13,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/servos", tags=["Servos"])
 
+# Colunas do ServoDetail, na ordem de _detalhe()
+COLUNAS_DETALHE = """id_servo, nome, telefone, status, ano_ingresso,
+                     email, endereco, data_nascimento, fn_idade(data_nascimento)"""
+
+
+def _detalhe(servo) -> ServoDetail:
+    return ServoDetail(
+        id=servo[0],
+        nome=servo[1],
+        telefone=servo[2],
+        status=servo[3],
+        ano_ingresso=servo[4],
+        email=servo[5],
+        endereco=servo[6],
+        data_nascimento=servo[7],
+        idade=servo[8],
+    )
+
 @router.get("/", response_model=list[ServoListItem], dependencies=[Depends(exigir_coord_servos)])
 # Sem a barra também: o redirect 307 do FastAPI sai como http:// no Render e o app
 # perde o token ao segui-lo (versões antigas do app chamam "/servos")
@@ -25,6 +43,10 @@ def listar_servos():
                SELECT s.id_servo AS id,
                       s.nome,
                       s.telefone,
+                      s.email,
+                      s.endereco,
+                      s.data_nascimento,
+                      fn_idade(s.data_nascimento) AS idade,
                       s.status,
                       s.ano_ingresso,
                       COALESCE(
@@ -60,7 +82,7 @@ def get_servo_by_id(
     try:
         with get_connection() as conn, conn.cursor() as cursor:
             cursor.execute(
-                "SELECT id_servo, nome, telefone, status, ano_ingresso FROM servo WHERE id_servo = %s",
+                f"SELECT {COLUNAS_DETALHE} FROM servo WHERE id_servo = %s",
                 (servo_id,)
             )
             servo = cursor.fetchone()
@@ -68,13 +90,7 @@ def get_servo_by_id(
         if not servo:
             raise HTTPException(status_code=404, detail="Servo não encontrado.")
 
-        return ServoDetail(
-            id=servo[0],
-            nome=servo[1],
-            telefone=servo[2],
-            status=servo[3],
-            ano_ingresso=servo[4],
-        )
+        return _detalhe(servo)
 
     except HTTPException:
         raise
@@ -118,9 +134,9 @@ def alterar_status(
                     WHERE id_servo = %s AND data_retorno IS NULL
                 """, (servo_id,))
 
-            cursor.execute("""
+            cursor.execute(f"""
                 UPDATE servo SET status = %s WHERE id_servo = %s
-                RETURNING id_servo, nome, telefone, status, ano_ingresso
+                RETURNING {COLUNAS_DETALHE}
             """, (body.status, servo_id))
             servo = cursor.fetchone()
 
@@ -137,10 +153,4 @@ def alterar_status(
         logger.error(f"Erro ao alterar status do servo {servo_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno.")
 
-    return ServoDetail(
-        id=servo[0],
-        nome=servo[1],
-        telefone=servo[2],
-        status=servo[3],
-        ano_ingresso=servo[4],
-    )
+    return _detalhe(servo)
