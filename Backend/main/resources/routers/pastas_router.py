@@ -4,9 +4,10 @@ from datetime import date
 from typing import Optional
 
 import psycopg2
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from ..bd.db import getConnection, releaseConnection
+from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, require_perfil
 from ..importacao.pastas_xlsx import MOMENTOS, PlanilhaInvalida, ler_planilha, normalizar
 from ..schemas.pasta_schema import (
@@ -65,6 +66,7 @@ def achar(texto: str, candidatos: list[tuple[int, str]]) -> tuple[Optional[int],
 
 @router.post("/importar", response_model=PastaImportResponse)
 def importar_pastas(
+    request: Request,
     arquivo: UploadFile = File(...),
     ano: int = Form(...),
     confirmar: bool = Form(False),
@@ -216,6 +218,8 @@ def importar_pastas(
         releaseConnection(conn)
 
     total = len(lancamentos) - len(erros)
+    if not gravar:
+        fora_do_historico(request)
     if gravar:
         message = f"{total} lançamento(s) gravado(s) para {ano}."
         if antigos:

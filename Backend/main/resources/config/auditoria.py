@@ -1,13 +1,19 @@
 import json
 import logging
 import sys
+from datetime import date
 from typing import Any
+
+import anyio
 
 # ── Auditoria ─────────────────────────────────────────────────────────────────
 #
 # Toda chamada que altera dados (POST/PUT/PATCH/DELETE) vira uma linha no log,
 # com quem fez, o que mandou e a resposta. Fica pesquisável nos logs do Render
-# (procure por "[auditoria]"); o Render guarda poucos dias, não é histórico.
+# (procure por "[auditoria]"); o Render guarda poucos dias.
+#
+# As que deram certo também vão para a tabela auditoria (migration 017), que é o
+# histórico: guarda 1 ano e o mais antigo é apagado uma vez por dia.
 #
 # O usuário vem de get_optional_user, que o guarda em request.state.usuario.
 
@@ -18,6 +24,11 @@ METODOS_AUDITADOS = {"POST", "PUT", "PATCH", "DELETE"}
 CAMPOS_SENSIVEIS = ("senha", "password", "token", "pin", "secret", "telefone", "endereco", "nascimento")
 
 LIMITE_CORPO = 500  # caracteres do corpo no log; importações grandes são cortadas
+
+# Não é alteração de dados: fica só no log do Render
+ROTAS_FORA_DO_HISTORICO = ("/auth/login",)
+DIAS_GUARDADOS = 365
+_ultima_limpeza: dict[str, date] = {}
 
 logger = logging.getLogger("auditoria")
 logger.setLevel(logging.INFO)
@@ -59,6 +70,29 @@ def _quem(usuario: Any) -> str:
     return f"{usuario.nome} (#{usuario.id}, {usuario.perfil})"
 
 
+def fora_do_historico(request) -> None:
+    """A rota não alterou nada (ex.: prévia de importação): fica só no log do Render."""
+    request.state.auditoria_ignorar = True
+
+
+def _gravar_no_banco(usuario: Any, metodo: str, rota: str, status: int, corpo: str) -> None:
+    """Roda numa thread (psycopg2 é síncrono). Falha aqui nunca derruba a requisição."""
+    from ..bd.db import get_connection  # aqui dentro: o middleware é montado antes do banco
+
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO auditoria (id_usuario, usuario, metodo, rota, status, corpo)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (getattr(usuario, "id", None), _quem(usuario) if usuario else None, metodo, rota, status, corpo))
+            if _ultima_limpeza.get("dia") != date.today():
+                cursor.execute("DELETE FROM auditoria WHERE criado_em < now() - make_interval(days => %s)",
+                               (DIAS_GUARDADOS,))
+                _ultima_limpeza["dia"] = date.today()
+    except Exception:
+        logger.exception("Falha ao gravar auditoria no banco")
+
+
 class AuditoriaMiddleware:
     """Middleware ASGI puro: lê o corpo sem consumir o que a rota vai receber."""
 
@@ -95,11 +129,16 @@ class AuditoriaMiddleware:
                 rota = scope["path"]
                 if scope.get("query_string"):
                     rota += "?" + scope["query_string"].decode("latin-1")
+                usuario = scope["state"].get("usuario")
+                corpo = _resumo_corpo(b"".join(partes), content_type)
                 logger.info(
                     "%s %s %s | %s | %s",
-                    scope["method"], rota, status["codigo"],
-                    _quem(scope["state"].get("usuario")),
-                    _resumo_corpo(b"".join(partes), content_type),
+                    scope["method"], rota, status["codigo"], _quem(usuario), corpo,
                 )
             except Exception:  # log nunca derruba a requisição
                 logger.exception("Falha ao registrar auditoria")
+            else:
+                if (status["codigo"] < 400 and not scope["path"].startswith(ROTAS_FORA_DO_HISTORICO)
+                        and not scope["state"].get("auditoria_ignorar")):
+                    await anyio.to_thread.run_sync(
+                        _gravar_no_banco, usuario, scope["method"], rota, status["codigo"], corpo)

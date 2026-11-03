@@ -28,6 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="revisao-inativos" />
             <Stack.Screen name="cursistas-gerenciar" />
             <Stack.Screen name="importar-cursistas" />
+            <Stack.Screen name="historico" />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>

@@ -175,6 +175,9 @@ export default function ContaScreen() {
               {temPerfil(usuario, ["administrador"]) && (
                 <Acao icone="people-outline" texto="Gerenciar usuários" onPress={() => router.push("/usuarios")} />
               )}
+              {temPerfil(usuario, ["administrador"]) && (
+                <Acao icone="time-outline" texto="Histórico de alterações" onPress={() => router.push("/historico")} />
+              )}
               {temPerfil(usuario, PERFIS_ADMIN) && (
                 <Acao icone="folder-open-outline" texto="Importar pastas" onPress={() => router.push("/importar-pastas")} />
               )}

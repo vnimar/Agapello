@@ -3,9 +3,10 @@ import logging
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, File, Form, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, File, Form, Request, UploadFile
 from ..bd.db import get_connection
 import psycopg2.extras
+from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, PERFIS_CURSISTAS, require_perfil
 from ..importacao.cursistas_xlsx import ler_planilha
 from ..importacao.pastas_xlsx import PlanilhaInvalida, normalizar
@@ -314,6 +315,7 @@ def _achar_comunidade(texto: str, comunidades: dict[str, tuple[int, str]]) -> tu
 
 @router.post("/importar", response_model=ImportacaoCursistasResponse, dependencies=[Depends(exigir_admin)])
 def importar_cursistas(
+    request: Request,
     arquivo: UploadFile = File(...),
     ano: int = Form(...),
     confirmar: bool = Form(False),
@@ -417,6 +419,8 @@ def importar_cursistas(
         logger.error(f"Erro ao importar cursistas: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no servidor.")
 
+    if not gravar:
+        fora_do_historico(request)
     if gravar:
         message = f"{novos} cursista(s) novo(s) e {atualizados} atualizado(s) em {ano}."
     elif confirmar:

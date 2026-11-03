@@ -1,8 +1,9 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from ..bd.db import get_connection
 import psycopg2.extras
 from datetime import date
+from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, exigir_login, require_perfil
 from ..schemas.missao_schema import (
     MissaoResponse,
@@ -219,7 +220,7 @@ def excluir_missao(id_missao: int):
     return Response(status_code=204)
 
 @router.post("/importar", response_model=MissaoImportResponse, dependencies=[Depends(verify_admin)])
-def importar_missoes(body: MissaoImportRequest):
+def importar_missoes(body: MissaoImportRequest, request: Request):
     """
     Importa um calendário inteiro.
     confirmar=false → só valida e devolve a prévia (nada é gravado).
@@ -265,6 +266,8 @@ def importar_missoes(body: MissaoImportRequest):
         raise HTTPException(status_code=500, detail="Erro interno no servidor.")
 
     gravadas = len(novas) if body.confirmar else 0
+    if not gravadas:
+        fora_do_historico(request)
     message = (
         f"{gravadas} missão(ões) importada(s)." if body.confirmar
         else f"Prévia: {len(novas)} nova(s), {len(itens) - len(novas)} duplicada(s)."
