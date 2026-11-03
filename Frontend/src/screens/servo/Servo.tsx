@@ -15,7 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Servo.style";
 import { getServos, putStatusServo } from "../../services/servos/servos";
-import DadosServoModal, { ServoComDados, dataBr } from "./DadosServoModal";
+import DadosServoModal, { ServoComDados } from "./DadosServoModal";
 import {
   getFrequenciaServos,
   FrequenciaServoResumo,
@@ -116,24 +116,13 @@ function ServoDetalhes({
 
       {/* Dados do servo */}
       <View style={styles.dadosBox}>
-        {[
-          { chave: "Telefone", valor: servo.telefone },
-          { chave: "Email", valor: servo.email },
-          { chave: "Endereço", valor: servo.endereco },
-          {
-            chave: "Nascimento",
-            valor: servo.data_nascimento
-              ? `${dataBr(servo.data_nascimento)}${servo.idade !== null ? ` (${servo.idade} anos)` : ""}`
-              : null,
-          },
-        ].map((d) =>
-          d.valor ? (
-            <View key={d.chave} style={styles.dadosRow}>
-              <Text style={styles.dadosKey}>{d.chave}</Text>
-              <Text style={styles.dadosValue}>{d.valor}</Text>
-            </View>
-          ) : null
-        )}
+        {/* Email, endereço e nascimento ficam para o quadrante */}
+        {servo.telefone ? (
+          <View style={styles.dadosRow}>
+            <Text style={styles.dadosKey}>Telefone</Text>
+            <Text style={styles.dadosValue}>{servo.telefone}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.dadosRow}>
           <Text style={styles.dadosKey}>Ano de ingresso</Text>
