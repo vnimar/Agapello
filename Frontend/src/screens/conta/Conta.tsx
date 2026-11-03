@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Cores } from "@/constants/theme";
 import { useAuth } from "../../context/AuthContext";
 import { PERFIL_LABEL, PERFIS_ADMIN, temPerfil, trocarSenha } from "../../services/auth/auth";
+import { getServosById } from "../../services/servos/servos";
+import DadosServoModal, { ServoComDados } from "../servo/DadosServoModal";
 import { authStyles as styles } from "../login/Login.styles";
 import MeuResumo from "./MeuResumo";
 
@@ -43,6 +45,7 @@ export default function ContaScreen() {
   const [senhaNova, setSenhaNova] = useState("");
   const [senhaConfirma, setSenhaConfirma] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [meusDados, setMeusDados] = useState<ServoComDados | null>(null);
 
   const fechar = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
@@ -75,6 +78,15 @@ export default function ContaScreen() {
         },
       },
     ]);
+  };
+
+  const abrirMeusDados = async () => {
+    if (!usuario.id_servo) return;
+    try {
+      setMeusDados((await getServosById(usuario.id_servo)) as ServoComDados);
+    } catch (err: any) {
+      Alert.alert("Não foi possível abrir seus dados", err?.message || "Tente novamente.");
+    }
   };
 
   const salvarSenha = async () => {
@@ -116,7 +128,7 @@ export default function ContaScreen() {
 
           <View style={styles.card}>
             <View style={styles.cardRow}>
-              <Text style={styles.cardKey}>Email</Text>
+              <Text style={styles.cardKey}>Login</Text>
               <Text style={styles.cardValue}>{usuario.email}</Text>
             </View>
             <View style={[styles.cardRow, styles.cardRowLast]}>
@@ -166,6 +178,9 @@ export default function ContaScreen() {
               {temPerfil(usuario, PERFIS_ADMIN) && (
                 <Acao icone="folder-open-outline" texto="Importar pastas" onPress={() => router.push("/importar-pastas")} />
               )}
+              {usuario.id_servo && (
+                <Acao icone="create-outline" texto="Meus dados" onPress={abrirMeusDados} />
+              )}
               <Acao icone="key-outline" texto="Trocar senha" onPress={() => setTrocando(true)} ultima />
             </View>
           )}
@@ -175,6 +190,16 @@ export default function ContaScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <DadosServoModal
+        servo={meusDados}
+        titulo="Meus dados"
+        onFechar={() => setMeusDados(null)}
+        onSalvo={() => {
+          setMeusDados(null);
+          Alert.alert("Pronto", "Seus dados foram atualizados.");
+        }}
+      />
     </SafeAreaView>
   );
 }

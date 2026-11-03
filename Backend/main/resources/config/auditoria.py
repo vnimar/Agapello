@@ -14,7 +14,8 @@ from typing import Any
 METODOS_AUDITADOS = {"POST", "PUT", "PATCH", "DELETE"}
 
 # Campos que nunca vão para o log (comparação sem maiúsculas, por trecho do nome)
-CAMPOS_SENSIVEIS = ("senha", "password", "token", "pin", "secret")
+# Dados pessoais também: o log mostra quem alterou, não o conteúdo
+CAMPOS_SENSIVEIS = ("senha", "password", "token", "pin", "secret", "telefone", "endereco", "nascimento")
 
 LIMITE_CORPO = 500  # caracteres do corpo no log; importações grandes são cortadas
 

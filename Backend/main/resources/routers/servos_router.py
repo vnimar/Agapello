@@ -5,9 +5,11 @@ from ..bd.db import get_connection
 import psycopg2
 import psycopg2.extras
 import psycopg2.errors
-from ..schemas.servo_schema import ServoListItem, ServoDetail, ServoStatusUpdate
+from ..schemas.servo_schema import ServoListItem, ServoDetail, ServoDadosUpdate, ServoStatusUpdate
 from ..schemas.auth_schema import UsuarioLogado
-from ..config.security import PERFIS_ADMIN, PERFIS_COORD_SERVOS, exigir_login, exigir_coord_servos, require_perfil
+from ..config.security import (
+    PERFIS_ADMIN, PERFIS_COORD_SERVOS, exigir_login, exigir_coord_servos, get_current_user, require_perfil,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,34 @@ def get_servo_by_id(
     except Exception as e:
         logger.error(f"Erro ao buscar servo {servo_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno.")
+
+
+# Dados de contato: o próprio servo se atualiza; admin e coord. geral editam qualquer um
+@router.put("/{servo_id}/dados", response_model=ServoDetail)
+def editar_dados(
+    servo_id: int,
+    body: ServoDadosUpdate,
+    usuario: UsuarioLogado = Depends(get_current_user),
+):
+    if usuario.id_servo != servo_id and not usuario.tem(*PERFIS_ADMIN):
+        raise HTTPException(status_code=403, detail="Você só pode editar os seus próprios dados.")
+
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(f"""
+                UPDATE servo SET telefone = %s, email = %s, endereco = %s, data_nascimento = %s
+                WHERE id_servo = %s
+                RETURNING {COLUNAS_DETALHE}
+            """, (body.telefone, body.email, body.endereco, body.data_nascimento, servo_id))
+            servo = cursor.fetchone()
+
+    except Exception as e:
+        logger.error(f"Erro ao editar dados do servo {servo_id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    if not servo:
+        raise HTTPException(status_code=404, detail="Servo não encontrado.")
+    return _detalhe(servo)
 
 
 # Inativar/reativar: só coord. geral e administrador

@@ -21,11 +21,15 @@ def _idade_esperada(nascimento: date) -> int:
 @pytest.fixture
 def id_servo(usuarios):
     id_servo = usuarios["servo"][1]
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT telefone FROM servo WHERE id_servo = %s", (id_servo,))
+        telefone = cursor.fetchone()[0]
     yield id_servo
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
-            "UPDATE servo SET email = NULL, endereco = NULL, data_nascimento = NULL WHERE id_servo = %s",
-            (id_servo,),
+            "UPDATE servo SET telefone = %s, email = NULL, endereco = NULL, data_nascimento = NULL"
+            " WHERE id_servo = %s",
+            (telefone, id_servo),
         )
 
 
@@ -68,3 +72,58 @@ def test_sem_nascimento_idade_vazia(client, headers, id_servo):
     resposta = client.get(f"/servos/{id_servo}", headers=headers("servo"))
     assert resposta.status_code == 200, resposta.text
     assert resposta.json()["idade"] is None
+
+
+# ── Edição (PUT /servos/{id}/dados) ──────────────────────────────────────────
+
+DADOS = {
+    "telefone": " (11) 99999-0000 ",
+    "email": "Novo@Teste.Agapello",
+    "endereco": "Rua Nova, 20",
+    "data_nascimento": "1995-06-15",
+}
+
+
+def test_servo_edita_os_proprios_dados(client, headers, id_servo):
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json=DADOS)
+    assert resposta.status_code == 200, resposta.text
+    dados = resposta.json()
+    assert dados["telefone"] == "(11) 99999-0000"
+    assert dados["email"] == "novo@teste.agapello"
+    assert dados["idade"] == _idade_esperada(date(1995, 6, 15))
+
+
+def test_admin_e_coord_geral_editam_qualquer_servo(client, headers, id_servo):
+    for login in ("admin", "coordgeral"):
+        resposta = client.put(f"/servos/{id_servo}/dados", headers=headers(login), json=DADOS)
+        assert resposta.status_code == 200, (login, resposta.text)
+
+
+def test_outro_servo_nao_edita(client, headers, id_servo):
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("formacao"), json=DADOS)
+    assert resposta.status_code == 403, resposta.text
+
+
+def test_sem_login_nao_edita(client, headers, id_servo):
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers(None), json=DADOS)
+    assert resposta.status_code == 401, resposta.text
+
+
+def test_campo_vazio_apaga(client, headers, id_servo):
+    client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json=DADOS)
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"),
+                          json={"telefone": "  ", "email": "", "endereco": None, "data_nascimento": None})
+    assert resposta.status_code == 200, resposta.text
+    dados = resposta.json()
+    assert (dados["telefone"], dados["email"], dados["endereco"], dados["idade"]) == (None, None, None, None)
+
+
+@pytest.mark.parametrize("campo, valor", [
+    ("email", "sem-arroba"),
+    ("email", "nome@semponto"),
+    ("data_nascimento", "2999-01-01"),
+    ("data_nascimento", "1850-01-01"),
+])
+def test_dados_invalidos(client, headers, id_servo, campo, valor):
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json={**DADOS, campo: valor})
+    assert resposta.status_code == 422, resposta.text

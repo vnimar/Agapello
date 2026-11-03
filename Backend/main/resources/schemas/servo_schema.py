@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Literal
 
 class ServoListItem(BaseModel):
@@ -24,6 +24,33 @@ class ServoDetail(BaseModel):
     idade: Optional[int] = None
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
+
+class ServoDadosUpdate(BaseModel):
+    """Dados de contato: o próprio servo ou admin/coord. geral. Vazio apaga o campo."""
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    endereco: Optional[str] = None
+    data_nascimento: Optional[date] = None
+
+    @field_validator("telefone", "email", "endereco")
+    @classmethod
+    def limpar(cls, valor: Optional[str]) -> Optional[str]:
+        valor = (valor or "").strip()
+        return valor or None
+
+    @field_validator("email")
+    @classmethod
+    def validar_email(cls, valor: Optional[str]) -> Optional[str]:
+        if valor and ("@" not in valor or "." not in valor.split("@")[-1] or " " in valor):
+            raise ValueError("Email inválido.")
+        return valor.lower() if valor else None
+
+    @field_validator("data_nascimento")
+    @classmethod
+    def validar_nascimento(cls, valor: Optional[date]) -> Optional[date]:
+        if valor and not (date(1900, 1, 2) <= valor <= date.today()):
+            raise ValueError("Data de nascimento inválida.")
+        return valor
 
 class ServoStatusUpdate(BaseModel):
     """Inativar (com motivo opcional) ou reativar um servo."""

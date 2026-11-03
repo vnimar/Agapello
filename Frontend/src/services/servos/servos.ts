@@ -21,3 +21,18 @@ export function putStatusServo(
     body: JSON.stringify({ status, motivo: motivo || null }),
   });
 }
+
+// Dados de contato: o próprio servo ou admin/coord. geral. Campo vazio = apagar.
+export interface DadosServo {
+  telefone: string | null;
+  email: string | null;
+  endereco: string | null;
+  data_nascimento: string | null; // AAAA-MM-DD
+}
+
+export function putDadosServo(id_servo: number, dados: DadosServo) {
+  return apiRequest(`/servos/${id_servo}/dados`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}

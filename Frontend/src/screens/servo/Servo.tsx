@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Servo.style";
 import { getServos, putStatusServo } from "../../services/servos/servos";
+import DadosServoModal, { ServoComDados, dataBr } from "./DadosServoModal";
 import {
   getFrequenciaServos,
   FrequenciaServoResumo,
@@ -30,6 +31,10 @@ interface Servo {
   id: number;
   nome: string;
   telefone: string | null;
+  email: string | null;
+  endereco: string | null;
+  data_nascimento: string | null;
+  idade: number | null;
   status: string | null;
   ano_ingresso: number | null;
   pastas: string[];
@@ -50,10 +55,12 @@ function ServoDetalhes({
   servo,
   resumo,
   onAlterarStatus,
+  onEditarDados,
 }: {
   servo: Servo;
   resumo: FrequenciaServoResumo | null;
   onAlterarStatus?: () => void; // só para quem pode inativar/reativar
+  onEditarDados?: () => void; // só admin e coord. geral
 }) {
   const percentual = resumo?.percentual_presenca ?? null;
   const cor = corDaFrequencia(percentual);
@@ -109,12 +116,24 @@ function ServoDetalhes({
 
       {/* Dados do servo */}
       <View style={styles.dadosBox}>
-        {servo.telefone ? (
-          <View style={styles.dadosRow}>
-            <Text style={styles.dadosKey}>Telefone</Text>
-            <Text style={styles.dadosValue}>{servo.telefone}</Text>
-          </View>
-        ) : null}
+        {[
+          { chave: "Telefone", valor: servo.telefone },
+          { chave: "Email", valor: servo.email },
+          { chave: "Endereço", valor: servo.endereco },
+          {
+            chave: "Nascimento",
+            valor: servo.data_nascimento
+              ? `${dataBr(servo.data_nascimento)}${servo.idade !== null ? ` (${servo.idade} anos)` : ""}`
+              : null,
+          },
+        ].map((d) =>
+          d.valor ? (
+            <View key={d.chave} style={styles.dadosRow}>
+              <Text style={styles.dadosKey}>{d.chave}</Text>
+              <Text style={styles.dadosValue}>{d.valor}</Text>
+            </View>
+          ) : null
+        )}
 
         <View style={styles.dadosRow}>
           <Text style={styles.dadosKey}>Ano de ingresso</Text>
@@ -141,6 +160,13 @@ function ServoDetalhes({
           </Text>
         </View>
       </View>
+
+      {onEditarDados && (
+        <TouchableOpacity style={styles.btnReativar} onPress={onEditarDados} activeOpacity={0.7}>
+          <Ionicons name="create-outline" size={16} color={Cores.primaria} />
+          <Text style={styles.btnReativarText}>Editar dados</Text>
+        </TouchableOpacity>
+      )}
 
       {onAlterarStatus && (
         servo.status === "Inativo" ? (
@@ -174,6 +200,9 @@ export default function ServosScreen() {
   const [servoInativar, setServoInativar] = useState<Servo | null>(null);
   const [motivo, setMotivo] = useState("");
   const [salvandoStatus, setSalvandoStatus] = useState(false);
+
+  // Edição dos dados de contato (admin e coord. geral)
+  const [servoEditar, setServoEditar] = useState<Servo | null>(null);
 
   // Novos estados para busca e filtros
   const [searchText, setSearchText] = useState("");
@@ -379,6 +408,7 @@ export default function ServosScreen() {
                 servo={item}
                 resumo={resumo}
                 onAlterarStatus={isAdmin ? () => alterarStatus(item) : undefined}
+                onEditarDados={isAdmin ? () => setServoEditar(item) : undefined}
               />
             </View>
           )}
@@ -674,6 +704,16 @@ export default function ServosScreen() {
           </View>
         </View>
       </Modal>
+
+      <DadosServoModal
+        servo={servoEditar}
+        titulo="Editar dados"
+        onFechar={() => setServoEditar(null)}
+        onSalvo={(atualizado: ServoComDados) => {
+          setServos((prev) => prev.map((s) => (s.id === atualizado.id ? { ...s, ...atualizado } : s)));
+          setServoEditar(null);
+        }}
+      />
 
       {/* Modal de inativação (motivo opcional) */}
       <Modal
