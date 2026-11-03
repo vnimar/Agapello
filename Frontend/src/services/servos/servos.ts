@@ -10,15 +10,45 @@ export function getServos() {
 export function getServosById(id_servo: number) {
   return apiRequest(`/servos/${id_servo}`);
 }
-// Inativar (motivo opcional) ou reativar: só coord. geral e administrador
+// Inativar (motivo opcional) ou reativar: só coord. geral e administrador.
+// Quem saiu há mais de 2 anos só volta como exceção (excecao: true).
 export function putStatusServo(
   id_servo: number,
   status: "Ativo" | "Inativo",
-  motivo?: string
+  motivo?: string,
+  excecao = false
 ) {
   return apiRequest(`/servos/${id_servo}/status`, {
     method: "PUT",
-    body: JSON.stringify({ status, motivo: motivo || null }),
+    body: JSON.stringify({ status, motivo: motivo || null, excecao }),
+  });
+}
+
+// Saiu há mais de 2 anos (data_saida = "AAAA-MM-DD")
+export function passouDoPrazo(data_saida: string | null | undefined) {
+  if (!data_saida) return false;
+  const limite = new Date();
+  limite.setFullYear(limite.getFullYear() - 2);
+  return new Date(`${data_saida}T00:00:00`) <= limite;
+}
+
+// ── Revisão anual de inativos (admin e coord. geral) ──
+
+export interface InativoParaRevisao {
+  id: number;
+  nome: string;
+  data_saida: string; // AAAA-MM-DD
+  tem_login: boolean;
+}
+
+export function getRevisaoInativos(): Promise<InativoParaRevisao[]> {
+  return apiRequest("/servos/revisao-inativos");
+}
+
+export function excluirServos(ids: number[]): Promise<{ message: string; excluidos: number }> {
+  return apiRequest("/servos/excluir", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
   });
 }
 

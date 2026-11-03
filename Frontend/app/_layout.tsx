@@ -25,6 +25,7 @@ export default function RootLayout() {
             <Stack.Screen name="trocar-senha" options={{ gestureEnabled: false }} />
             <Stack.Screen name="usuarios" />
             <Stack.Screen name="importar-pastas" />
+            <Stack.Screen name="revisao-inativos" />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>

@@ -12,6 +12,7 @@ class ServoListItem(BaseModel):
     idade: Optional[int] = None  # calculada pelo banco (fn_idade), nunca guardada
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
+    data_saida: Optional[date] = None  # só de quem está inativo
     pastas: list[str]
 
 class ServoDetail(BaseModel):
@@ -56,6 +57,19 @@ class ServoStatusUpdate(BaseModel):
     """Inativar (com motivo opcional) ou reativar um servo."""
     status: Literal["Ativo", "Inativo"]
     motivo: Optional[str] = None
+    # Reativar quem saiu há mais de 2 anos só como exceção confirmada
+    excecao: bool = False
+
+# ── Revisão anual de inativos ────────────────────────────────────────────────
+
+class InativoParaRevisao(BaseModel):
+    id: int
+    nome: str
+    data_saida: date
+    tem_login: bool
+
+class ExcluirServos(BaseModel):
+    ids: list[int]
 
 # ── Minha conta: o próprio servo ─────────────────────────────────────────────
 

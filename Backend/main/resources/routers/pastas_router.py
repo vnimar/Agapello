@@ -89,7 +89,8 @@ def importar_pastas(
             cursor.execute("SELECT id_pasta, nome FROM pasta")
             pastas_sistema = cursor.fetchall()
             nome_pasta = dict(pastas_sistema)
-            cursor.execute("SELECT id_servo, nome, status FROM servo")
+            # Excluído não recebe pasta: se voltou, entra como cursista novo
+            cursor.execute("SELECT id_servo, nome, status FROM servo WHERE status <> 'Excluido'")
             servos = cursor.fetchall()
             nome_servo = {i: n for i, n, _ in servos}
             status_servo = {i: s for i, _, s in servos}

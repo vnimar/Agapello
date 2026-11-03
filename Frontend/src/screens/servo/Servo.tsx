@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Servo.style";
-import { getServos, putStatusServo } from "../../services/servos/servos";
+import { getServos, passouDoPrazo, putStatusServo } from "../../services/servos/servos";
 import DadosServoModal, { ServoComDados } from "./DadosServoModal";
 import {
   getFrequenciaServos,
@@ -37,6 +37,7 @@ interface Servo {
   idade: number | null;
   status: string | null;
   ano_ingresso: number | null;
+  data_saida: string | null; // só de quem está inativo
   pastas: string[];
 }
 
@@ -223,7 +224,8 @@ export default function ServosScreen() {
         ) {
           servosArray = (servosData as any).data;
         }
-        setServos(servosArray);
+        // Excluídos (revisão anual) não aparecem mais
+        setServos(servosArray.filter((s) => s.status !== "Excluido"));
 
         const freqMap: Record<number, FrequenciaServoResumo> = {};
         const freqList =
@@ -291,11 +293,11 @@ export default function ServosScreen() {
   }, []);
 
   const salvarStatus = useCallback(
-    async (servo: Servo, status: "Ativo" | "Inativo", motivoSaida?: string) => {
+    async (servo: Servo, status: "Ativo" | "Inativo", motivoSaida?: string, excecao = false) => {
       setSalvandoStatus(true);
       try {
-        await putStatusServo(servo.id, status, motivoSaida?.trim());
-        setServos((prev) => prev.map((s) => (s.id === servo.id ? { ...s, status } : s)));
+        await putStatusServo(servo.id, status, motivoSaida?.trim(), excecao);
+        setServos((prev) => prev.map((s) => (s.id === servo.id ? { ...s, status, data_saida: null } : s)));
         setServoInativar(null);
       } catch (err: any) {
         Alert.alert("Erro", err?.message || "Não foi possível alterar o status.");
@@ -309,6 +311,18 @@ export default function ServosScreen() {
   // Inativar pede o motivo no modal; reativar só confirma
   const alterarStatus = useCallback(
     (servo: Servo) => {
+      if (servo.status === "Inativo" && passouDoPrazo(servo.data_saida)) {
+        Alert.alert(
+          "Reativar como exceção?",
+          `${servo.nome} saiu há mais de 2 anos, o prazo para voltar como servo. ` +
+            "Pela regra, voltaria como cursista. Reative só se a coordenação abriu uma exceção.",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Reativar mesmo assim", onPress: () => salvarStatus(servo, "Ativo", undefined, true) },
+          ]
+        );
+        return;
+      }
       if (servo.status === "Inativo") {
         Alert.alert(
           "Reativar servo",

@@ -92,10 +92,10 @@ export default function FrequenciaScreen() {
   const [busca, setBusca] = useState("");
   const [buscaMissao, setBuscaMissao] = useState("");
 
-  // Inativo só aparece na chamada em que já tem registro (de antes da saída)
+  // Inativo e excluído só aparecem na chamada em que já têm registro (de antes da saída)
   const servosChamada = useMemo(() => {
     const comRegistro = new Set(frequenciaExistente.map((f) => f.id_servo));
-    return servos.filter((s) => s.status !== "Inativo" || comRegistro.has(s.id));
+    return servos.filter((s) => s.status === "Ativo" || comRegistro.has(s.id));
   }, [servos, frequenciaExistente]);
 
   const servosFiltrados = useMemo(() => {
@@ -131,7 +131,7 @@ export default function FrequenciaScreen() {
 
     const initialAttendance: Record<number, StatusFrequencia | null> = {};
     servosRef.current
-      .filter((s) => s.status !== "Inativo")
+      .filter((s) => s.status === "Ativo")
       .forEach((s) => { initialAttendance[s.id] = "Falta"; });
     setAttendance(initialAttendance);
 

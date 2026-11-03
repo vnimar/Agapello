@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from ..bd.db import get_connection
 import psycopg2
 import psycopg2.extras
-import psycopg2.errors
-from ..schemas.servo_schema import ServoListItem, ServoDetail, ServoDadosUpdate, ServoStatusUpdate
+from ..schemas.servo_schema import (
+    ExcluirServos, InativoParaRevisao, ServoDadosUpdate, ServoDetail, ServoListItem, ServoStatusUpdate,
+)
 from ..schemas.auth_schema import UsuarioLogado
 from ..config.security import (
     PERFIS_ADMIN, PERFIS_COORD_SERVOS, exigir_login, exigir_coord_servos, get_current_user, require_perfil,
@@ -18,6 +19,10 @@ router = APIRouter(prefix="/servos", tags=["Servos"])
 # Colunas do ServoDetail, na ordem de _detalhe()
 COLUNAS_DETALHE = """id_servo, nome, telefone, status, ano_ingresso,
                      email, endereco, data_nascimento, fn_idade(data_nascimento)"""
+
+
+# Inativo há mais de 2 anos: entra na revisão anual (e só volta como exceção)
+PRAZO_RETORNO = "INTERVAL '2 years'"
 
 
 def _detalhe(servo) -> ServoDetail:
@@ -51,6 +56,7 @@ def listar_servos():
                       fn_idade(s.data_nascimento) AS idade,
                       s.status,
                       s.ano_ingresso,
+                      a.data_saida,
                       COALESCE(
                               json_agg(DISTINCT p.nome) FILTER(WHERE p.nome IS NOT NULL),
                               '[]'
@@ -60,7 +66,10 @@ def listar_servos():
                         LEFT JOIN servo_pasta sp ON sp.id_servo = s.id_servo
                                                 AND sp.ano = EXTRACT(YEAR FROM CURRENT_DATE)
                         LEFT JOIN pasta p ON p.id_pasta = sp.id_pasta
-               GROUP BY s.id_servo
+                        LEFT JOIN servo_afastamento a ON a.id_servo = s.id_servo AND a.data_retorno IS NULL
+               -- Excluídos vêm junto (status 'Excluido') para as chamadas antigas
+               -- continuarem com o nome; as telas tiram eles das listas
+               GROUP BY s.id_servo, a.data_saida
                ORDER BY s.nome
            """)
             servos = cursor.fetchall()
@@ -70,6 +79,81 @@ def listar_servos():
     except psycopg2.Error as e:
         logger.error(f"Erro ao listar servos: {e}")
         raise HTTPException(status_code=500, detail="Erro ao buscar servos.")
+
+
+# ── Revisão anual de inativos (admin e coord. geral) ─────────────────────────
+
+SQL_ELEGIVEIS = f"""
+    SELECT s.id_servo, s.nome, a.data_saida, (u.id_usuario IS NOT NULL) AS tem_login
+    FROM servo s
+    JOIN servo_afastamento a ON a.id_servo = s.id_servo AND a.data_retorno IS NULL
+    LEFT JOIN usuario u ON u.id_servo = s.id_servo
+    WHERE s.status = 'Inativo'
+      AND a.data_saida <= CURRENT_DATE - {PRAZO_RETORNO}
+"""
+
+
+@router.get("/revisao-inativos", response_model=list[InativoParaRevisao],
+            dependencies=[Depends(require_perfil(*PERFIS_ADMIN))])
+def listar_revisao_inativos():
+    """Quem está inativo há mais de 2 anos (candidatos à exclusão)."""
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(SQL_ELEGIVEIS + " ORDER BY a.data_saida, s.nome")
+            linhas = cursor.fetchall()
+    except Exception as e:
+        logger.error(f"Erro ao listar inativos para revisão: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    return [InativoParaRevisao(id=i, nome=n, data_saida=d, tem_login=l) for i, n, d, l in linhas]
+
+
+@router.post("/excluir", dependencies=[Depends(require_perfil(*PERFIS_ADMIN))])
+def excluir_servos(body: ExcluirServos):
+    """
+    Exclui os servos escolhidos na revisão. A linha fica (nome, frequências e
+    pastas antigas continuam nas chamadas), mas some de tudo e perde os dados
+    pessoais: contato, nascimento, foto, motivo da saída e a conta de login.
+    """
+    ids = sorted(set(body.ids))
+    if not ids:
+        raise HTTPException(status_code=400, detail="Escolha pelo menos um servo.")
+
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(SQL_ELEGIVEIS + " AND s.id_servo = ANY(%s) FOR UPDATE OF s", (ids,))
+            elegiveis = {linha[0] for linha in cursor.fetchall()}
+            if any(i not in elegiveis for i in ids):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Só dá para excluir quem está inativo há mais de 2 anos. Atualize a lista.",
+                )
+
+            cursor.execute("""
+                UPDATE servo
+                SET status = 'Excluido', excluido_em = now(),
+                    telefone = NULL, email = NULL, endereco = NULL, data_nascimento = NULL, foto_url = NULL
+                WHERE id_servo = ANY(%s)
+            """, (ids,))
+            cursor.execute("UPDATE servo_afastamento SET motivo = NULL WHERE id_servo = ANY(%s)", (ids,))
+            # A conta fica (é referenciada como autora de registros), mas sem email, senha nem acesso
+            cursor.execute("""
+                UPDATE usuario
+                SET ativo = false, senha_hash = NULL, trocar_senha = false, perfil = 'servo',
+                    email = 'excluido.' || id_usuario || '@agapello.invalid'
+                WHERE id_servo = ANY(%s)
+            """, (ids,))
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Erro ao excluir servos {ids}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    total = len(ids)
+    plural = "s" if total > 1 else ""
+    return {"message": f"{total} servo{plural} excluído{plural}.", "excluidos": total}
 
 
 @router.get("/{servo_id}", response_model=ServoDetail)
@@ -138,8 +222,9 @@ def alterar_status(
     usuario: UsuarioLogado = Depends(require_perfil(*PERFIS_ADMIN)),
 ):
     """
-    Ninguém é excluído: quem sai fica Inativo (some da chamada e perde o acesso)
-    e a saída fica em servo_afastamento. Ao voltar, o afastamento é fechado.
+    Quem sai fica Inativo (some da chamada e perde o acesso) e a saída fica em
+    servo_afastamento. Ao voltar, o afastamento é fechado. Passados 2 anos, a
+    volta só como exceção confirmada; a exclusão é feita na revisão anual.
     """
     motivo = (body.motivo or "").strip() or None
 
@@ -149,6 +234,8 @@ def alterar_status(
             linha = cursor.fetchone()
             if not linha:
                 raise HTTPException(status_code=404, detail="Servo não encontrado.")
+            if linha[0] == "Excluido":
+                raise HTTPException(status_code=400, detail="Servo excluído não volta: entra de novo como cursista.")
             if linha[0] == body.status:
                 raise HTTPException(status_code=400, detail=f"O servo já está {body.status.lower()}.")
 
@@ -158,7 +245,16 @@ def alterar_status(
                     VALUES (%s, CURRENT_DATE, %s, %s)
                 """, (servo_id, motivo, usuario.id))
             else:
-                # A regra dos 2 anos é checada pelo banco (afastamento_prazo_retorno_check)
+                cursor.execute(f"""
+                    SELECT 1 FROM servo_afastamento
+                    WHERE id_servo = %s AND data_retorno IS NULL
+                      AND data_saida <= CURRENT_DATE - {PRAZO_RETORNO}
+                """, (servo_id,))
+                if cursor.fetchone() and not body.excecao:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Passou o prazo de 2 anos desde a saída. Só dá para reativar como exceção.",
+                    )
                 cursor.execute("""
                     UPDATE servo_afastamento SET data_retorno = CURRENT_DATE
                     WHERE id_servo = %s AND data_retorno IS NULL
@@ -172,12 +268,6 @@ def alterar_status(
 
     except HTTPException:
         raise
-
-    except psycopg2.errors.CheckViolation:
-        raise HTTPException(
-            status_code=400,
-            detail="Passou o prazo de 2 anos desde a saída. O retorno precisa ser tratado com a coordenação."
-        )
 
     except Exception as e:
         logger.error(f"Erro ao alterar status do servo {servo_id}: {e}")

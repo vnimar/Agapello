@@ -76,7 +76,9 @@ def _email_em_uso(cursor, email: str, id_usuario: int = 0) -> None:
 def listar_usuarios():
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(SELECT_USUARIO + " ORDER BY u.ativo DESC, lower(u.nome)")
+            # Contas de servos excluídos ficam só como registro (sem email nem acesso)
+            cursor.execute(SELECT_USUARIO + " WHERE s.status IS DISTINCT FROM 'Excluido'"
+                                            " ORDER BY u.ativo DESC, lower(u.nome)")
             return [UsuarioItem(**linha) for linha in cursor.fetchall()]
 
     except Exception as e:

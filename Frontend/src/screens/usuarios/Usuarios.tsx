@@ -235,6 +235,7 @@ function FormUsuario({
   const servosDisponiveis = useMemo(() => {
     const termo = semAcento(buscaServo.trim());
     return servos
+      .filter((s) => s.status !== "Excluido")
       .filter((s) => !servosComLogin.has(s.id) || s.id === usuario?.id_servo)
       .filter((s) => !termo || semAcento(s.nome).includes(termo))
       .slice(0, 30);
