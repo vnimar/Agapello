@@ -16,7 +16,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
+import { Cores } from "@/constants/theme";
 import { useAuth } from "../../context/AuthContext";
 import { Perfil, PERFIL_LABEL, temPerfil } from "../../services/auth/auth";
 import { getServos } from "../../services/servos/servos";
@@ -114,23 +116,28 @@ export default function UsuariosScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.topo}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.voltar}>‹ Voltar</Text>
+        <TouchableOpacity style={styles.voltar} onPress={() => router.back()} hitSlop={12}
+                          accessibilityLabel="Voltar">
+          <Ionicons name="chevron-back" size={26} color={Cores.marinho} />
         </TouchableOpacity>
         <Text style={styles.titulo}>Usuários</Text>
         <TouchableOpacity style={styles.novo} onPress={abrirNovo}>
-          <Text style={styles.novoText}>+ Novo</Text>
+          <Ionicons name="add" size={16} color={Cores.textoSobrePrimaria} />
+          <Text style={styles.novoText}>Novo</Text>
         </TouchableOpacity>
       </View>
 
-      <TextInput
-        style={styles.busca}
-        value={busca}
-        onChangeText={setBusca}
-        placeholder="Buscar por nome ou email"
-        placeholderTextColor="#9CA3AF"
-        autoCapitalize="none"
-      />
+      <View style={styles.busca}>
+        <Ionicons name="search" size={18} color={Cores.iconeInativo} />
+        <TextInput
+          style={styles.buscaInput}
+          value={busca}
+          onChangeText={setBusca}
+          placeholder="Buscar por nome ou email"
+          placeholderTextColor={Cores.iconeInativo}
+          autoCapitalize="none"
+        />
+      </View>
 
       {carregando ? (
         <ActivityIndicator style={{ marginTop: 40 }} />
@@ -286,7 +293,7 @@ function FormUsuario({
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-            <Text style={styles.titulo}>{usuario ? "Editar usuário" : "Novo usuário"}</Text>
+            <Text style={styles.formTitulo}>{usuario ? "Editar usuário" : "Novo usuário"}</Text>
 
             <Text style={authStyles.label}>Servo vinculado</Text>
             {escolhendoServo ? (
@@ -296,7 +303,7 @@ function FormUsuario({
                   value={buscaServo}
                   onChangeText={setBuscaServo}
                   placeholder="Buscar servo"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Cores.iconeInativo}
                   autoFocus
                 />
                 <TouchableOpacity style={styles.servoItem} onPress={() => escolherServo(null)}>
@@ -315,6 +322,7 @@ function FormUsuario({
                 <Text style={styles.servoEscolhidoText}>
                   {servoEscolhido ? servoEscolhido.nome : "Nenhum — toque para escolher"}
                 </Text>
+                <Ionicons name="chevron-forward" size={18} color={Cores.iconeInativo} />
               </TouchableOpacity>
             )}
 
@@ -367,6 +375,7 @@ function FormUsuario({
                   </Text>
                 </View>
                 <Switch
+                  trackColor={{ true: Cores.primaria }}
                   value={!!form.ativo}
                   onValueChange={(ativo) => setForm((f) => ({ ...f, ativo }))}
                   disabled={souEu}
@@ -380,7 +389,7 @@ function FormUsuario({
               disabled={salvando}
             >
               {salvando ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
               ) : (
                 <Text style={authStyles.btnPrimaryText}>{usuario ? "Salvar" : "Criar e gerar senha"}</Text>
               )}

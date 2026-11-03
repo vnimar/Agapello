@@ -1,50 +1,69 @@
 import { Platform, StyleSheet } from "react-native";
-import { AZUL_AGAPELLO } from "../login/Login.styles";
+import { Cores } from "@/constants/theme";
+import { STATUS_CORES } from "@/constants/frequencia";
 
-const TEXTO = "#1A2C3E";
-const CINZA = "#6C757D";
+const TEXTO = Cores.texto;
+const CINZA = Cores.textoSuave;
+
+const sombra = {
+  shadowColor: Cores.sombra,
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2,
+};
 
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: Cores.fundo,
   },
   topo: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   voltar: {
-    fontSize: 16,
-    color: AZUL_AGAPELLO,
-    fontWeight: "600",
+    width: 72,
+    padding: 4,
   },
   titulo: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: TEXTO,
+    fontSize: 24,
+    fontWeight: "800",
+    color: Cores.marinho,
+    letterSpacing: -0.5,
   },
   novo: {
-    backgroundColor: AZUL_AGAPELLO,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    width: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    backgroundColor: Cores.primaria,
+    borderRadius: 18,
+    paddingVertical: 7,
   },
   novoText: {
-    color: "#FFFFFF",
+    color: Cores.textoSobrePrimaria,
     fontWeight: "600",
     fontSize: 13,
   },
   busca: {
+    flexDirection: "row",
+    alignItems: "center",
     marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: "#FFFFFF",
+    marginBottom: 6,
+    backgroundColor: Cores.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: Cores.borda,
     paddingHorizontal: 14,
+  },
+  buscaInput: {
+    flex: 1,
+    marginLeft: 8,
     paddingVertical: Platform.OS === "ios" ? 12 : 8,
     fontSize: 15,
     color: TEXTO,
@@ -54,10 +73,13 @@ export const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   item: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    backgroundColor: Cores.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
     padding: 14,
     marginTop: 10,
+    ...sombra,
   },
   itemInativo: {
     opacity: 0.55,
@@ -82,24 +104,24 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: "#EEF2FF",
+    backgroundColor: Cores.primariaSuave,
   },
   seloText: {
     fontSize: 11,
     fontWeight: "600",
-    color: AZUL_AGAPELLO,
+    color: Cores.primaria,
   },
   seloAlerta: {
-    backgroundColor: "#FFF4E5",
+    backgroundColor: STATUS_CORES.Justificada.fundo,
   },
   seloAlertaText: {
-    color: "#9A5B00",
+    color: STATUS_CORES.Justificada.texto,
   },
   seloPerigo: {
-    backgroundColor: "#FCEBEB",
+    backgroundColor: STATUS_CORES.Falta.fundo,
   },
   seloPerigoText: {
-    color: "#A32D2D",
+    color: STATUS_CORES.Falta.texto,
   },
   vazio: {
     textAlign: "center",
@@ -108,30 +130,38 @@ export const styles = StyleSheet.create({
   },
 
   // ── Formulário ──
+  formTitulo: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: Cores.marinho,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
   opcoes: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   opcao: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
+    borderColor: Cores.borda,
+    backgroundColor: Cores.card,
+    paddingHorizontal: 14,
     paddingVertical: 8,
   },
   opcaoAtiva: {
-    backgroundColor: AZUL_AGAPELLO,
-    borderColor: AZUL_AGAPELLO,
+    backgroundColor: Cores.primariaSuave,
+    borderColor: Cores.primaria,
   },
   opcaoText: {
     fontSize: 13,
-    color: TEXTO,
+    fontWeight: "500",
+    color: CINZA,
   },
   opcaoAtivaText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: Cores.primaria,
+    fontWeight: "700",
   },
   linhaSwitch: {
     flexDirection: "row",
@@ -140,36 +170,43 @@ export const styles = StyleSheet.create({
     marginTop: 18,
   },
   servoEscolhido: {
-    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Cores.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: Cores.borda,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   servoEscolhidoText: {
+    flex: 1,
     fontSize: 15,
     color: TEXTO,
   },
   servoItem: {
     paddingVertical: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: Cores.borda,
   },
 
   // ── Senha temporária ──
   senhaCaixa: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Cores.card,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
     paddingVertical: 20,
     alignItems: "center",
     marginTop: 8,
+    ...sombra,
   },
   senha: {
     fontSize: 26,
     fontWeight: "700",
     letterSpacing: 1,
-    color: TEXTO,
+    color: Cores.marinho,
+    marginTop: 4,
     fontFamily: Platform.select({ ios: "Menlo", android: "monospace" }),
   },
 });

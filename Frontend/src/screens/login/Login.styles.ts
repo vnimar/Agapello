@@ -1,9 +1,6 @@
 import { Platform, StyleSheet } from "react-native";
 import { Cores } from "@/constants/theme";
 
-// Usado por Importar pastas e Usuários (ainda no visual antigo)
-export const AZUL_AGAPELLO = "#043673";
-
 const sombra = {
   shadowColor: Cores.sombra,
   shadowOpacity: 0.08,

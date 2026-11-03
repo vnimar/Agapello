@@ -3,6 +3,9 @@ import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
+import { Ionicons } from "@expo/vector-icons";
+
+import { Cores } from "@/constants/theme";
 
 import {
   ArquivoEscolhido,
@@ -142,11 +145,11 @@ export default function ImportarPastasScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.topo}>
-        <TouchableOpacity onPress={voltar} hitSlop={12}>
-          <Text style={styles.voltar}>‹ Voltar</Text>
+        <TouchableOpacity style={styles.voltar} onPress={voltar} hitSlop={12} accessibilityLabel="Voltar">
+          <Ionicons name="chevron-back" size={26} color={Cores.marinho} />
         </TouchableOpacity>
         <Text style={styles.titulo}>Importar pastas</Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.voltar} />
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -159,19 +162,23 @@ export default function ImportarPastasScreen() {
           {[anoAtual, anoAtual + 1].map((a) => (
             <TouchableOpacity key={a} style={[styles.ano, ano === a && styles.anoAtivo]}
                               onPress={() => trocarAno(a)} disabled={enviando}>
-              <Text style={styles.anoText}>{a}</Text>
+              <Text style={[styles.anoText, ano === a && styles.anoTextAtivo]}>{a}</Text>
               <Text style={styles.anoSub}>{a === anoAtual ? "ano atual" : "vale em janeiro"}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <TouchableOpacity style={[styles.botao, enviando && styles.botaoDesativado]}
+        <TouchableOpacity style={[styles.botao, !!arquivo && styles.botaoSecundario, enviando && styles.botaoDesativado]}
                           onPress={escolher} disabled={enviando}>
-          <Text style={styles.botaoText}>{arquivo ? "Escolher outra planilha" : "Escolher planilha"}</Text>
+          <Ionicons name="document-attach-outline" size={20}
+                    color={arquivo ? Cores.marinho : Cores.textoSobrePrimaria} />
+          <Text style={[styles.botaoText, !!arquivo && styles.botaoSecundarioText]}>
+            {arquivo ? "Escolher outra planilha" : "Escolher planilha"}
+          </Text>
         </TouchableOpacity>
         {arquivo && <Text style={styles.arquivo}>{arquivo.name}</Text>}
 
-        {enviando && <ActivityIndicator size="large" />}
+        {enviando && <ActivityIndicator size="large" color={Cores.primaria} />}
 
         {previa && (
           <>

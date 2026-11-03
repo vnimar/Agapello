@@ -1,32 +1,41 @@
 import { StyleSheet } from "react-native";
-import { AZUL_AGAPELLO } from "../login/Login.styles";
+import { Cores } from "@/constants/theme";
+import { STATUS_CORES } from "@/constants/frequencia";
 
-const TEXTO = "#1A2C3E";
-const CINZA = "#6C757D";
-const VERMELHO = "#C62828";
-const AMARELO = "#8A6D00";
+const TEXTO = Cores.texto;
+const CINZA = Cores.textoSuave;
+const ERRO = STATUS_CORES.Falta;
+const AVISO = STATUS_CORES.Justificada;
+
+const sombra = {
+  shadowColor: Cores.sombra,
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2,
+};
 
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: Cores.fundo,
   },
   topo: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   voltar: {
-    fontSize: 16,
-    color: AZUL_AGAPELLO,
-    fontWeight: "600",
+    width: 40,
+    padding: 4,
   },
   titulo: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: TEXTO,
+    fontSize: 24,
+    fontWeight: "800",
+    color: Cores.marinho,
+    letterSpacing: -0.5,
   },
   container: {
     paddingHorizontal: 16,
@@ -47,19 +56,22 @@ export const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: "#FFFFFF",
+    borderColor: Cores.borda,
+    backgroundColor: Cores.card,
     paddingVertical: 10,
     alignItems: "center",
   },
   anoAtivo: {
-    borderColor: AZUL_AGAPELLO,
-    backgroundColor: "#E8F0FA",
+    borderColor: Cores.primaria,
+    backgroundColor: Cores.primariaSuave,
   },
   anoText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
     color: TEXTO,
+  },
+  anoTextAtivo: {
+    color: Cores.primaria,
   },
   anoSub: {
     fontSize: 11,
@@ -67,23 +79,31 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   botao: {
-    backgroundColor: AZUL_AGAPELLO,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Cores.primaria,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: "center",
     marginBottom: 16,
   },
+  botaoSecundario: {
+    backgroundColor: Cores.primariaSuave,
+  },
   botaoConfirmar: {
-    backgroundColor: "#2E7D32",
     marginTop: 8,
   },
   botaoDesativado: {
     opacity: 0.45,
   },
   botaoText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 15,
+    color: Cores.textoSobrePrimaria,
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  botaoSecundarioText: {
+    color: Cores.marinho,
   },
   arquivo: {
     fontSize: 13,
@@ -104,10 +124,10 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   caixaErro: {
-    backgroundColor: "#FDECEA",
+    backgroundColor: ERRO.fundo,
   },
   caixaAviso: {
-    backgroundColor: "#FFF8E1",
+    backgroundColor: AVISO.fundo,
   },
   caixaTitulo: {
     fontSize: 14,
@@ -115,20 +135,23 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
   erroText: {
-    color: VERMELHO,
+    color: ERRO.texto,
     fontSize: 13,
     marginBottom: 4,
   },
   avisoText: {
-    color: AMARELO,
+    color: AVISO.texto,
     fontSize: 13,
     marginBottom: 4,
   },
   pasta: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    backgroundColor: Cores.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Cores.borda,
     padding: 14,
     marginBottom: 10,
+    ...sombra,
   },
   pastaIgnorada: {
     opacity: 0.55,
@@ -145,10 +168,10 @@ export const styles = StyleSheet.create({
   },
   momento: {
     fontSize: 12,
-    fontWeight: "700",
-    color: AZUL_AGAPELLO,
+    fontWeight: "600",
+    color: CINZA,
     textTransform: "uppercase",
-    marginTop: 10,
+    marginTop: 12,
     marginBottom: 4,
   },
   pessoa: {
@@ -161,7 +184,7 @@ export const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   pessoaErro: {
-    color: VERMELHO,
+    color: ERRO.texto,
   },
   detalhe: {
     fontSize: 12,
@@ -169,10 +192,10 @@ export const styles = StyleSheet.create({
   },
   detalheErro: {
     fontSize: 12,
-    color: VERMELHO,
+    color: ERRO.texto,
   },
   conferir: {
-    color: AMARELO,
+    color: AVISO.texto,
     fontWeight: "600",
   },
 });
