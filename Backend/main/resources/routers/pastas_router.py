@@ -19,6 +19,10 @@ from ..schemas.pasta_schema import (
 logger = logging.getLogger(__name__)
 
 # Virada de pastas: administrador e coordenação geral
+# Guarda o ano importado e os 2 anteriores (o que as regras de repetição e de
+# ciclo usam); o que for mais antigo é apagado ao gravar
+ANOS_GUARDADOS = 2
+
 router = APIRouter(prefix="/pastas", tags=["Pastas"], dependencies=[Depends(require_perfil(*PERFIS_ADMIN))])
 
 TAMANHO_MAXIMO = 5 * 1024 * 1024
@@ -192,7 +196,13 @@ def importar_pastas(
             """, (ano,))
             avisos += [f'A pasta "{n}" ficou sem ninguém no Pós-Encontro.' for (n,) in cursor.fetchall()]
 
-        gravar = confirmar and not erros
+            cursor.execute("SELECT count(*) FROM servo_pasta WHERE ano < %s", (ano - ANOS_GUARDADOS,))
+            antigos = cursor.fetchone()[0]
+
+            gravar = confirmar and not erros
+            if gravar:
+                cursor.execute("DELETE FROM servo_pasta WHERE ano < %s", (ano - ANOS_GUARDADOS,))
+
         if gravar:
             conn.commit()
         else:
@@ -208,14 +218,18 @@ def importar_pastas(
     total = len(lancamentos) - len(erros)
     if gravar:
         message = f"{total} lançamento(s) gravado(s) para {ano}."
+        if antigos:
+            message += f" {antigos} lançamento(s) de antes de {ano - ANOS_GUARDADOS} foram apagados."
     elif confirmar:
         message = f"Nada foi gravado: corrija o(s) {len(erros)} erro(s) e envie de novo."
     else:
         message = f"Prévia de {ano}: {total} lançamento(s), {len(erros)} erro(s), {len(avisos)} aviso(s)."
         if substituidos:
             message += f" Ao confirmar, substitui os {substituidos} lançamento(s) que já existem em {ano}."
+        if antigos:
+            message += f" Também apaga {antigos} lançamento(s) de antes de {ano - ANOS_GUARDADOS}."
 
     return PastaImportResponse(
-        ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos,
+        ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos, antigos=antigos,
         pastas=resultado, erros=erros, avisos=avisos,
     )

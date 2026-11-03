@@ -34,6 +34,7 @@ class PastaImportResponse(BaseModel):
     message: str
     gravados: int
     substituidos: int                # lançamentos do ano que já existiam
+    antigos: int = 0                 # lançamentos de mais de 2 anos antes, apagados ao gravar
     pastas: list[PastaImportada]
     erros: list[str]                 # impedem gravar
     avisos: list[str]                # só para conferir

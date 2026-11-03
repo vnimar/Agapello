@@ -115,8 +115,11 @@ export default function ImportarPastasScreen() {
     const substitui = previa.substituidos
       ? `\n\nOs ${previa.substituidos} lançamento(s) que já existem em ${ano} serão substituídos.`
       : "";
+    const antigos = previa.antigos
+      ? `\n\nOs ${previa.antigos} lançamento(s) de antes de ${ano - 2} serão apagados (só ficam ${ano - 2} a ${ano}).`
+      : "";
     const quando = ano > anoAtual ? `\n\nAs pastas de ${ano} passam a valer em 1º de janeiro.` : "";
-    Alert.alert("Gravar as pastas?", `${previa.message}${substitui}${quando}`, [
+    Alert.alert("Gravar as pastas?", `${previa.message}${substitui}${antigos}${quando}`, [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Gravar",

@@ -34,6 +34,7 @@ export interface ImportacaoPastas {
   message: string;
   gravados: number;
   substituidos: number;
+  antigos: number; // lançamentos de mais de 2 anos antes, apagados ao gravar
   pastas: PastaImportada[];
   erros: string[];
   avisos: string[];

@@ -188,6 +188,35 @@ def test_confirmar_substitui_o_ano(client, admin):
     }
 
 
+@pytest.fixture
+def pasta_antiga():
+    """Um lançamento de 3 anos antes do ano importado (sai) e um de 2 anos antes (fica)."""
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT id_servo FROM servo WHERE nome = 'Teste Servo 1'")
+        id_servo = cursor.fetchone()[0]
+        cursor.execute("SELECT id_pasta FROM pasta WHERE nome = 'Música'")
+        id_pasta = cursor.fetchone()[0]
+        for ano in (ANO - 3, ANO - 2):
+            cursor.execute("INSERT INTO servo_pasta (id_servo, id_pasta, ano, momento) VALUES (%s, %s, %s, 'pos')",
+                           (id_servo, id_pasta, ano))
+    yield
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("DELETE FROM servo_pasta WHERE id_servo = %s AND id_pasta = %s AND ano IN (%s, %s)",
+                       (id_servo, id_pasta, ANO - 3, ANO - 2))
+
+
+def test_gravar_apaga_pastas_de_mais_de_2_anos(client, admin, pasta_antiga):
+    previa = enviar(client, admin, planilha(PLANILHA_OK)).json()
+    assert previa["antigos"] >= 1
+    assert lancamentos(ANO - 3)  # a prévia não apaga nada
+
+    resposta = enviar(client, admin, planilha(PLANILHA_OK), confirmar=True)
+    assert resposta.status_code == 200, resposta.text
+    assert "apagados" in resposta.json()["message"]
+    assert lancamentos(ANO - 3) == set()
+    assert ("Teste Servo 1", "Música", "pos", False) in lancamentos(ANO - 2)
+
+
 def test_regra_quebrada_impede_gravar(client, admin):
     # Teste Servo 2 fez Ornamentação no ano atual (seed): não pode repetir no seguinte
     antes = lancamentos()
