@@ -100,7 +100,14 @@ export const styles = StyleSheet.create({
   },
 
   // Chips de filtros ativos
+  // Sem isso a lista abaixo espreme a faixa e corta os chips
+  chipsScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+
   chipsContainer: {
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 6,
     gap: 6,

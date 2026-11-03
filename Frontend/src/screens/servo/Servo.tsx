@@ -451,6 +451,7 @@ export default function ServosScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
           contentContainerStyle={styles.chipsContainer}
         >
           {activeFilters.map((chip) => (
