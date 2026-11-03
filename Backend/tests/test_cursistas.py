@@ -137,3 +137,45 @@ def test_nao_salva_cursista_de_outra_comunidade(client, headers, formacao_sem_ch
     assert resposta.status_code == 403
     assert all(c["status"] is None for c in chamada(client, headers, id_missao, "tutor.maranata")
                ["comunidades"][0]["cursistas"])
+
+
+# ── Lista com a frequência do ano ─────────────────────────────────────────────
+
+def _esperado(id_cursista):
+    """(presentes, justificadas, faltas) do cursista nas missões que contam, do ano, até hoje."""
+    from resources.bd.db import get_connection
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT COUNT(*) FILTER (WHERE f.status = 'Presente'),
+                   COUNT(*) FILTER (WHERE f.status = 'Justificada'),
+                   COUNT(*) FILTER (WHERE f.status = 'Falta')
+            FROM frequencia_cursista f JOIN missao m USING (id_missao)
+            WHERE f.id_cursista = %s AND fn_missao_de_cursista(m.descricao) AND m.conta_frequencia
+              AND m.data <= CURRENT_DATE AND EXTRACT(YEAR FROM m.data) = EXTRACT(YEAR FROM CURRENT_DATE)
+        """, (id_cursista,))
+        return cursor.fetchone()
+
+
+def test_frequencia_do_coordenador_so_da_comunidade(client, headers):
+    resposta = client.get("/cursistas/frequencia", headers=headers("coord.kairos"))
+    assert resposta.status_code == 200, resposta.text
+    comunidades = resposta.json()["comunidades"]
+    assert [c["nome"] for c in comunidades] == ["Kairós"]
+
+    cursistas = comunidades[0]["cursistas"]
+    assert cursistas, "o seed tem cursistas na Kairós"
+    for c in cursistas:
+        presente, justificada, falta = _esperado(c["id_cursista"])
+        assert (c["presente"], c["justificada"], c["falta"]) == (presente, justificada, falta)
+        total = presente + justificada + falta
+        esperado = round((presente + justificada) * 100 / total, 2) if total else None
+        assert c["percentual_presenca"] == esperado
+
+
+def test_frequencia_coord_geral_ve_todas(client, headers):
+    corpo = client.get("/cursistas/frequencia", headers=headers("coordgeral")).json()
+    assert len(corpo["comunidades"]) == 5
+
+
+def test_frequencia_servo_sem_acesso(client, headers):
+    assert client.get("/cursistas/frequencia", headers=headers("servo")).status_code == 403

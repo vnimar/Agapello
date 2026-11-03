@@ -18,6 +18,7 @@ from ..schemas.cursista_schema import (
     CursistaItem,
     ExcluirCursistas,
     FaltosoEncontro,
+    FrequenciaCursistasResponse,
     ImportacaoCursistasResponse,
     MissoesCursistaResponse,
 )
@@ -192,6 +193,60 @@ def salvar_chamada(
         raise HTTPException(status_code=500, detail="Erro interno.")
 
     return MessageResponse(message="Chamada salva com sucesso!")
+
+
+# ── Lista com a frequência do ano ────────────────────────────────────────────
+
+@router.get("/frequencia", response_model=FrequenciaCursistasResponse)
+def frequencia_cursistas(usuario: UsuarioLogado = Depends(exigir_cursistas)):
+    """
+    % do ano de cada cursista das comunidades do usuário. Mesma regra da chamada:
+    só formação, encontro e confraternização que contam e já aconteceram.
+    A % vale só no ano de cursista (reinicia em 1º de janeiro).
+    """
+    ano = date.today().year
+    try:
+        with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            comunidades = _comunidades(cursor, usuario)
+            cursor.execute("""
+                SELECT c.id_cursista, c.nome, c.id_comunidade,
+                       COUNT(*) FILTER (WHERE f.status = 'Presente')    AS presente,
+                       COUNT(*) FILTER (WHERE f.status = 'Justificada') AS justificada,
+                       COUNT(*) FILTER (WHERE f.status = 'Falta')       AS falta,
+                       ROUND(COUNT(*) FILTER (WHERE f.status IN ('Presente', 'Justificada')) * 100.0
+                             / NULLIF(COUNT(f.id_frequencia_cursista), 0), 2) AS percentual_presenca
+                FROM cursista c
+                LEFT JOIN (
+                    frequencia_cursista f
+                    JOIN missao m ON m.id_missao = f.id_missao
+                                 AND fn_missao_de_cursista(m.descricao)
+                                 AND m.conta_frequencia
+                                 AND m.data <= CURRENT_DATE
+                                 AND EXTRACT(YEAR FROM m.data) = %(ano)s
+                ) ON f.id_cursista = c.id_cursista
+                WHERE c.ano = %(ano)s
+                  AND c.status IN ('ativo', 'concluido', 'promovido')
+                  AND c.id_comunidade = ANY(%(comunidades)s)
+                GROUP BY c.id_cursista, c.nome, c.id_comunidade
+                ORDER BY c.nome
+            """, {"ano": ano, "comunidades": [c["id_comunidade"] for c in comunidades]})
+            cursistas = cursor.fetchall()
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar a frequência dos cursistas: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    return FrequenciaCursistasResponse(
+        ano=ano,
+        comunidades=[
+            {
+                "id_comunidade": com["id_comunidade"],
+                "nome": com["nome"],
+                "cursistas": [c for c in cursistas if c["id_comunidade"] == com["id_comunidade"]],
+            }
+            for com in comunidades
+        ],
+    )
 
 
 # ── Gestão dos cursistas (admin e coord. geral) ──────────────────────────────

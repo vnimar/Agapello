@@ -48,6 +48,28 @@ class ChamadaCursistaResponse(BaseModel):
     comunidades: list[ComunidadeChamada]
 
 
+# ── Frequência do ano (lista com %) ──────────────────────────────────────────
+
+class CursistaFrequencia(BaseModel):
+    id_cursista: int
+    nome: str
+    presente: int = 0
+    justificada: int = 0
+    falta: int = 0
+    percentual_presenca: Optional[float] = None  # None = nenhuma chamada no ano
+
+
+class ComunidadeFrequencia(BaseModel):
+    id_comunidade: int
+    nome: str
+    cursistas: list[CursistaFrequencia]
+
+
+class FrequenciaCursistasResponse(BaseModel):
+    ano: int
+    comunidades: list[ComunidadeFrequencia]
+
+
 # ── Gestão (admin e coord. geral) ────────────────────────────────────────────
 
 class CursistaImportado(BaseModel):

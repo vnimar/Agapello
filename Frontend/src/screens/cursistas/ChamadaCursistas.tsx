@@ -23,6 +23,7 @@ import {
 } from "../../services/cursistas/cursistas";
 import { StatusFrequencia } from "../../services/frequencia/frequencia";
 import Header from "../../../components/Header";
+import ListaCursistas from "./ListaCursistas";
 import { Cores } from "@/constants/theme";
 import { STATUS_CORES } from "@/constants/frequencia";
 
@@ -53,7 +54,7 @@ function dataPorExtenso(dateStr: string) {
 const getInitials = (nome: string) =>
   nome.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join("");
 
-export default function ChamadaCursistasScreen() {
+function Chamada() {
   const [missoes, setMissoes] = useState<MissaoCursista[]>([]);
   const [missao, setMissao] = useState<MissaoCursista | null>(null);
   const [chamada, setChamada] = useState<ChamadaCursista | null>(null);
@@ -197,20 +198,14 @@ export default function ChamadaCursistasScreen() {
 
   if (carregando) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <Header title="Cursistas" />
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={Cores.primaria} />
-        </View>
-      </SafeAreaView>
+      <View style={styles.emptyState}>
+        <ActivityIndicator size="large" color={Cores.primaria} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Cores.fundo} />
-      <Header title="Cursistas" />
-
+    <>
       {missoes.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="school-outline" size={40} color={Cores.iconeInativo} />
@@ -417,6 +412,26 @@ export default function ChamadaCursistasScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+    </>
+  );
+}
+
+// Chamada (lançar presenças) | Lista (cursistas com a % do ano)
+export default function ChamadaCursistasScreen() {
+  const [aba, setAba] = useState<"chamada" | "lista">("chamada");
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Cores.fundo} />
+      <Header title="Cursistas" />
+      <View style={chamadaStyles.segmento}>
+        {([["chamada", "Chamada"], ["lista", "Lista"]] as const).map(([valor, texto]) => (
+          <TouchableOpacity key={valor} style={[chamadaStyles.segmentoBtn, aba === valor && chamadaStyles.segmentoAtivo]}
+                            onPress={() => setAba(valor)} activeOpacity={0.7}>
+            <Text style={[chamadaStyles.segmentoTexto, aba === valor && chamadaStyles.segmentoTextoAtivo]}>{texto}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {aba === "chamada" ? <Chamada /> : <ListaCursistas />}
     </SafeAreaView>
   );
 }

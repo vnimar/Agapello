@@ -49,6 +49,26 @@ export function salvarChamadaCursistas(
   });
 }
 
+// ── Lista com a % do ano (mesmas comunidades da chamada) ──
+
+export interface CursistaFrequencia {
+  id_cursista: number;
+  nome: string;
+  presente: number;
+  justificada: number;
+  falta: number;
+  percentual_presenca: number | null; // null = nenhuma chamada no ano
+}
+
+export interface FrequenciaCursistas {
+  ano: number;
+  comunidades: { id_comunidade: number; nome: string; cursistas: CursistaFrequencia[] }[];
+}
+
+export function getFrequenciaCursistas() {
+  return apiRequest<FrequenciaCursistas>("/cursistas/frequencia");
+}
+
 // ── Gestão (admin e coord. geral) ──
 // O cursista entra pela planilha do encontro; quem falta ao encontro, desiste
 // ou foi lançado por engano é apagado por completo.
