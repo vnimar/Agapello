@@ -1,4 +1,5 @@
-from typing import Optional
+from datetime import date
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from .frequencia_schema import StatusFrequencia
@@ -45,3 +46,49 @@ class ChamadaCursistaResponse(BaseModel):
     data: str
     descricao: str
     comunidades: list[ComunidadeChamada]
+
+
+# ── Gestão (admin e coord. geral) ────────────────────────────────────────────
+
+class CursistaImportado(BaseModel):
+    linha: int
+    nome: str
+    comunidade: Optional[str] = None  # nome no sistema; None = não achou
+    acao: Literal["novo", "atualiza", "erro"]
+    erro: Optional[str] = None
+    avisos: list[str] = []
+
+
+class ImportacaoCursistasResponse(BaseModel):
+    ano: int
+    message: str
+    gravado: bool
+    novos: int
+    atualizados: int
+    cursistas: list[CursistaImportado]
+    erros: list[str]   # impedem gravar
+    avisos: list[str]  # só para conferir
+
+
+class CursistaItem(BaseModel):
+    id_cursista: int
+    nome: str
+    id_comunidade: Optional[int] = None
+    comunidade: Optional[str] = None
+    status: str
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    endereco: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    idade: Optional[int] = None
+
+
+class FaltosoEncontro(BaseModel):
+    id_cursista: int
+    nome: str
+    comunidade: Optional[str] = None
+    faltas: list[date]  # dias do encontro com Falta ou Justificada
+
+
+class ExcluirCursistas(BaseModel):
+    ids: list[int] = Field(min_length=1)

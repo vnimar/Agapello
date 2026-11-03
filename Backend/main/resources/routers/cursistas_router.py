@@ -1,13 +1,24 @@
+import difflib
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends, File, Form, UploadFile
 from ..bd.db import get_connection
 import psycopg2.extras
 from ..config.security import PERFIS_ADMIN, PERFIS_CURSISTAS, require_perfil
+from ..importacao.cursistas_xlsx import ler_planilha
+from ..importacao.pastas_xlsx import PlanilhaInvalida, normalizar
 from ..schemas.auth_schema import UsuarioLogado
 from ..schemas.frequencia_schema import MessageResponse
 from ..schemas.cursista_schema import (
     ChamadaCursistaRequest,
     ChamadaCursistaResponse,
+    CursistaImportado,
+    CursistaItem,
+    ExcluirCursistas,
+    FaltosoEncontro,
+    ImportacaoCursistasResponse,
     MissoesCursistaResponse,
 )
 
@@ -181,3 +192,239 @@ def salvar_chamada(
         raise HTTPException(status_code=500, detail="Erro interno.")
 
     return MessageResponse(message="Chamada salva com sucesso!")
+
+
+# ── Gestão dos cursistas (admin e coord. geral) ──────────────────────────────
+# O cursista entra no sistema pela planilha do encontro (antes ou no 1º dia),
+# já na comunidade. Quem falta ao encontro, desiste ou foi lançado por engano
+# é apagado por completo (com as presenças).
+
+exigir_admin = require_perfil(*PERFIS_ADMIN)
+TAMANHO_MAXIMO = 5 * 1024 * 1024
+
+# Cursista que ainda não virou servo (pode ser apagado)
+STATUS_CURSISTA = ("ativo", "concluido")
+
+# Os dias do encontro são as missões "Encontro Querigmático" do ano
+SQL_DIAS_ENCONTRO = """
+    SELECT id_missao FROM missao
+    WHERE fn_missao_de_cursista(descricao)
+      AND lower(descricao) ~ '^encontro querigm'
+      AND EXTRACT(YEAR FROM data) = %(ano)s
+"""
+
+
+def _validar_ano(ano: int):
+    ano_atual = date.today().year
+    if ano not in (ano_atual, ano_atual + 1):
+        raise HTTPException(status_code=422, detail=f"Só dá para usar {ano_atual} ou {ano_atual + 1}.")
+
+
+@router.get("/", response_model=list[CursistaItem], dependencies=[Depends(exigir_admin)])
+@router.get("", response_model=list[CursistaItem], dependencies=[Depends(exigir_admin)], include_in_schema=False)
+def listar_cursistas(ano: Optional[int] = None):
+    """Cursistas do ano (padrão: o atual), já no sistema."""
+    ano = ano or date.today().year
+    try:
+        with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute("""
+                SELECT c.id_cursista, c.nome, c.id_comunidade, co.nome AS comunidade, c.status,
+                       c.telefone, c.email, c.endereco, c.data_nascimento,
+                       fn_idade(c.data_nascimento) AS idade
+                FROM cursista c
+                LEFT JOIN comunidade co ON co.id_comunidade = c.id_comunidade
+                WHERE c.ano = %s AND c.status IN ('ativo', 'concluido', 'promovido')
+                ORDER BY co.nome, c.nome
+            """, (ano,))
+            return cursor.fetchall()
+    except Exception as e:
+        logger.error(f"Erro ao listar cursistas: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+
+def _achar_comunidade(texto: str, comunidades: dict[str, tuple[int, str]]) -> tuple[Optional[int], Optional[str], bool]:
+    """(id, nome, conferir). Aceita "Kairos", "Comunidade Kairós"; letra trocada pede conferência."""
+    chave = normalizar(texto)
+    if not chave:
+        return None, None, False
+    for nome_norm, (id_com, nome) in comunidades.items():
+        if chave == nome_norm or f" {nome_norm} " in f" {chave} ":
+            return id_com, nome, False
+    parecido = difflib.get_close_matches(chave, list(comunidades), n=1, cutoff=0.8)
+    if parecido:
+        id_com, nome = comunidades[parecido[0]]
+        return id_com, nome, True
+    return None, None, False
+
+
+@router.post("/importar", response_model=ImportacaoCursistasResponse, dependencies=[Depends(exigir_admin)])
+def importar_cursistas(
+    arquivo: UploadFile = File(...),
+    ano: int = Form(...),
+    confirmar: bool = Form(False),
+):
+    """
+    Importa a planilha do encontro. confirmar=false → só a prévia.
+    Quem já está no ano (mesmo nome) é atualizado: muda a comunidade e completa
+    os dados que vierem na planilha (célula vazia não apaga nada). Nunca remove.
+    Com qualquer erro, nada é gravado.
+    """
+    _validar_ano(ano)
+    conteudo = arquivo.file.read(TAMANHO_MAXIMO + 1)
+    if len(conteudo) > TAMANHO_MAXIMO:
+        raise HTTPException(status_code=413, detail="Arquivo grande demais (máximo 5 MB).")
+    try:
+        lidos = ler_planilha(conteudo)
+    except PlanilhaInvalida as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("SELECT id_comunidade, nome FROM comunidade WHERE tipo = 'cursistas'")
+            comunidades = {normalizar(nome): (i, nome) for i, nome in cursor.fetchall()}
+            cursor.execute("""
+                SELECT id_cursista, nome FROM cursista
+                WHERE ano = %s AND status IN ('ativo', 'concluido', 'promovido')
+            """, (ano,))
+            existentes = {normalizar(nome): i for i, nome in cursor.fetchall()}
+            cursor.execute("SELECT nome FROM servo WHERE status IN ('Ativo', 'Inativo')")
+            servos = {normalizar(nome) for (nome,) in cursor.fetchall()}
+
+            resultado: list[CursistaImportado] = []
+            erros: list[str] = []
+            avisos: list[str] = []
+            vistos: dict[str, int] = {}
+            gravar_linhas = []
+
+            for lido in lidos:
+                item = CursistaImportado(linha=lido.linha, nome=lido.nome, acao="novo", avisos=list(lido.avisos))
+                chave = normalizar(lido.nome)
+                id_com, nome_com, conferir = _achar_comunidade(lido.comunidade, comunidades)
+                item.comunidade = nome_com
+
+                if not chave:
+                    item.erro = "sem nome"
+                elif chave in vistos:
+                    item.erro = f"nome repetido na planilha (linha {vistos[chave]})"
+                elif not lido.comunidade:
+                    item.erro = "sem comunidade"
+                elif id_com is None:
+                    item.erro = f'comunidade "{lido.comunidade}" não existe'
+                vistos.setdefault(chave, lido.linha)
+
+                if item.erro:
+                    item.acao = "erro"
+                    erros.append(f"Linha {lido.linha} ({lido.nome or 'sem nome'}): {item.erro}.")
+                else:
+                    if conferir:
+                        item.avisos.append(f'comunidade "{lido.comunidade}" entendida como {nome_com}')
+                    if chave in servos:
+                        item.avisos.append("tem um servo com este nome: confira se é a mesma pessoa")
+                    if chave in existentes:
+                        item.acao = "atualiza"
+                    gravar_linhas.append((lido, id_com, existentes.get(chave)))
+
+                avisos += [f"Linha {lido.linha} ({lido.nome}): {a}." for a in item.avisos]
+                resultado.append(item)
+
+            novos = sum(1 for _, _, existente in gravar_linhas if existente is None)
+            atualizados = len(gravar_linhas) - novos
+            gravar = confirmar and not erros
+            if gravar:
+                for lido, id_com, existente in gravar_linhas:
+                    dados = {
+                        "nome": lido.nome, "ano": ano, "id_comunidade": id_com, "telefone": lido.telefone,
+                        "email": lido.email, "endereco": lido.endereco, "nascimento": lido.nascimento,
+                        "id": existente,
+                    }
+                    if existente is None:
+                        cursor.execute("""
+                            INSERT INTO cursista (nome, ano, status, id_comunidade, telefone, email,
+                                                  endereco, data_nascimento)
+                            VALUES (%(nome)s, %(ano)s, 'ativo', %(id_comunidade)s, %(telefone)s, %(email)s,
+                                    %(endereco)s, %(nascimento)s)
+                        """, dados)
+                    else:
+                        cursor.execute("""
+                            UPDATE cursista
+                            SET id_comunidade = %(id_comunidade)s,
+                                telefone = COALESCE(%(telefone)s, telefone),
+                                email = COALESCE(%(email)s, email),
+                                endereco = COALESCE(%(endereco)s, endereco),
+                                data_nascimento = COALESCE(%(nascimento)s, data_nascimento)
+                            WHERE id_cursista = %(id)s
+                        """, dados)
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Erro ao importar cursistas: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no servidor.")
+
+    if gravar:
+        message = f"{novos} cursista(s) novo(s) e {atualizados} atualizado(s) em {ano}."
+    elif confirmar:
+        message = f"Nada foi gravado: corrija o(s) {len(erros)} erro(s) na planilha e envie de novo."
+    else:
+        message = (f"Prévia de {ano}: {novos} novo(s), {atualizados} já cadastrado(s) (serão atualizados), "
+                   f"{len(erros)} erro(s), {len(avisos)} aviso(s).")
+
+    return ImportacaoCursistasResponse(
+        ano=ano, message=message, gravado=gravar, novos=novos, atualizados=atualizados,
+        cursistas=resultado, erros=erros, avisos=avisos,
+    )
+
+
+@router.get("/faltosos-encontro", response_model=list[FaltosoEncontro], dependencies=[Depends(exigir_admin)])
+def listar_faltosos(ano: Optional[int] = None):
+    """Cursistas com falta (ou justificada) em algum dia do encontro: são cortados."""
+    ano = ano or date.today().year
+    try:
+        with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(f"""
+                SELECT c.id_cursista, c.nome, co.nome AS comunidade,
+                       array_agg(m.data ORDER BY m.data) AS faltas
+                FROM cursista c
+                JOIN frequencia_cursista f ON f.id_cursista = c.id_cursista
+                                          AND f.status IN ('Falta', 'Justificada')
+                JOIN missao m ON m.id_missao = f.id_missao
+                LEFT JOIN comunidade co ON co.id_comunidade = c.id_comunidade
+                WHERE c.ano = %(ano)s AND c.status IN %(status)s
+                  AND f.id_missao IN ({SQL_DIAS_ENCONTRO})
+                GROUP BY c.id_cursista, c.nome, co.nome
+                ORDER BY co.nome, c.nome
+            """, {"ano": ano, "status": STATUS_CURSISTA})
+            return cursor.fetchall()
+    except Exception as e:
+        logger.error(f"Erro ao listar faltosos do encontro: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+
+@router.post("/excluir", response_model=MessageResponse, dependencies=[Depends(exigir_admin)])
+def excluir_cursistas(body: ExcluirCursistas):
+    """Faltou ao encontro, desistiu ou foi lançado por engano: apaga tudo do cursista."""
+    ids = sorted(set(body.ids))
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("SELECT id_cursista, status FROM cursista WHERE id_cursista = ANY(%s) FOR UPDATE",
+                           (ids,))
+            achados = dict(cursor.fetchall())
+            if len(achados) != len(ids):
+                raise HTTPException(status_code=404, detail="Cursista não encontrado. Atualize a lista.")
+            if any(status == "promovido" for status in achados.values()):
+                raise HTTPException(status_code=400, detail="Quem já virou servo não sai por aqui.")
+
+            cursor.execute("DELETE FROM frequencia_cursista WHERE id_cursista = ANY(%s)", (ids,))
+            cursor.execute("DELETE FROM visita_cursista WHERE id_cursista = ANY(%s)", (ids,))  # cascata nos responsáveis
+            cursor.execute("DELETE FROM cursista WHERE id_cursista = ANY(%s)", (ids,))
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Erro ao excluir cursistas {ids}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    total = len(ids)
+    return MessageResponse(message=f"{total} cursista{'s' if total > 1 else ''} removido{'s' if total > 1 else ''}.")

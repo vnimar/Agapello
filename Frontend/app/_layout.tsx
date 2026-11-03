@@ -26,6 +26,8 @@ export default function RootLayout() {
             <Stack.Screen name="usuarios" />
             <Stack.Screen name="importar-pastas" />
             <Stack.Screen name="revisao-inativos" />
+            <Stack.Screen name="cursistas-gerenciar" />
+            <Stack.Screen name="importar-cursistas" />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>
