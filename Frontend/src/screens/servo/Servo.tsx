@@ -22,7 +22,7 @@ import {
 } from "../../services/frequencia/frequencia";
 import Header from "../../../components/Header";
 import { Cores } from "@/constants/theme";
-import { STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
+import { FREQ_MINIMA, FREQ_REGULAR, STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
 import { useAuth } from "../../context/AuthContext";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ interface Servo {
 
 type FaixaFreq = "boa" | "regular" | "critica";
 
-// Faixas do filtro: boa ≥ 75%, regular ≥ 50%, crítica abaixo disso
+// Faixas do filtro: boa ≥ 70%, regular ≥ 50%, crítica abaixo disso
 const FAIXAS_FREQ: { value: FaixaFreq; label: string; indicator: string }[] = [
   { value: "boa", label: "Boa", indicator: STATUS_CORES.Presente.forte },
   { value: "regular", label: "Regular", indicator: STATUS_CORES.Justificada.forte },
@@ -275,7 +275,7 @@ export default function ServosScreen() {
       result = result.filter((s) => {
         const freq = frequencias[s.id]?.percentual_presenca;
         if (freq === null || freq === undefined) return false;
-        const faixa: FaixaFreq = freq >= 75 ? "boa" : freq >= 50 ? "regular" : "critica";
+        const faixa: FaixaFreq = freq >= FREQ_MINIMA ? "boa" : freq >= FREQ_REGULAR ? "regular" : "critica";
         return filterFreq.includes(faixa);
       });
     }

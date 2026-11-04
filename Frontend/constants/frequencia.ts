@@ -14,10 +14,14 @@ export const STATUS_CORES: Record<StatusFrequencia, CorStatus> = {
 
 const SEM_DADOS: CorStatus = { fundo: '#F1F4F9', texto: '#9AA9C7', forte: '#C9D3E3' };
 
-/** Cor da frequência anual: boa ≥ 75%, regular ≥ 50%, crítica abaixo disso. */
+/** Frequência mínima do estatuto (boa a partir daqui) e limite da faixa regular. */
+export const FREQ_MINIMA = 70;
+export const FREQ_REGULAR = 50;
+
+/** Cor da frequência anual: boa ≥ 70%, regular ≥ 50%, crítica abaixo disso. */
 export function corDaFrequencia(percentual: number | null | undefined): CorStatus {
   if (percentual === null || percentual === undefined) return SEM_DADOS;
-  if (percentual >= 75) return STATUS_CORES.Presente;
-  if (percentual >= 50) return STATUS_CORES.Justificada;
+  if (percentual >= FREQ_MINIMA) return STATUS_CORES.Presente;
+  if (percentual >= FREQ_REGULAR) return STATUS_CORES.Justificada;
   return STATUS_CORES.Falta;
 }
