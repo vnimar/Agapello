@@ -52,12 +52,16 @@ export function excluirServos(ids: number[]): Promise<{ message: string; excluid
   });
 }
 
-// Dados de contato: o próprio servo ou admin/coord. geral. Campo vazio = apagar.
+// Dados de contato, apelido e responsável: o próprio servo ou admin/coord. geral.
+// Campo vazio = apagar.
 export interface DadosServo {
   telefone: string | null;
   email: string | null;
   endereco: string | null;
   data_nascimento: string | null; // AAAA-MM-DD
+  apelido: string | null;
+  responsavel_nome: string | null;
+  responsavel_telefone: string | null;
 }
 
 export function putDadosServo(id_servo: number, dados: DadosServo) {

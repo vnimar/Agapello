@@ -21,6 +21,7 @@ import {
 } from "../../services/cursistas/cursistas";
 import { styles } from "../servo/Servo.style";
 import { chamadaStyles } from "./ChamadaCursistas.styles";
+import NomeComApelido, { nomeExibido, textoDeBusca } from "../../../components/NomeComApelido";
 
 // Lista dos cursistas com a % do ano (formação, encontro e confraternização
 // que contam). Coordenador e tutor veem a própria comunidade; coord. geral e
@@ -40,10 +41,10 @@ function Cursista({ c, aberto, onPress }: { c: CursistaFrequencia; aberto: boole
     <View style={styles.card}>
       <TouchableOpacity style={styles.cardHeader} onPress={onPress} activeOpacity={0.7}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(c.nome)}</Text>
+          <Text style={styles.avatarText}>{getInitials(nomeExibido(c))}</Text>
         </View>
         <View style={styles.cardInfo}>
-          <Text style={styles.cardNome} numberOfLines={1}>{c.nome}</Text>
+          <NomeComApelido nome={c.nome} apelido={c.apelido} style={styles.cardNome} />
         </View>
         <View style={[styles.freqPill, { backgroundColor: cor.fundo }]}>
           <Text style={[styles.freqPillText, { color: cor.texto }]}>
@@ -110,7 +111,7 @@ export default function ListaCursistas() {
   const comunidade = dados?.comunidades.find((c) => c.id_comunidade === idComunidade) ?? null;
   const lista = useMemo(() => {
     const termo = semAcento(busca.trim());
-    return (comunidade?.cursistas ?? []).filter((c) => !termo || semAcento(c.nome).includes(termo));
+    return (comunidade?.cursistas ?? []).filter((c) => !termo || semAcento(textoDeBusca(c)).includes(termo));
   }, [comunidade, busca]);
 
   if (!dados) {

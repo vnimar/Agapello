@@ -32,6 +32,7 @@ class MissoesCursistaResponse(BaseModel):
 class CursistaChamada(BaseModel):
     id_cursista: int
     nome: str
+    apelido: Optional[str] = None
     status: Optional[StatusFrequencia] = None  # None = chamada ainda não feita
 
 
@@ -53,6 +54,7 @@ class ChamadaCursistaResponse(BaseModel):
 class CursistaFrequencia(BaseModel):
     id_cursista: int
     nome: str
+    apelido: Optional[str] = None
     presente: int = 0
     justificada: int = 0
     falta: int = 0
@@ -75,6 +77,7 @@ class FrequenciaCursistasResponse(BaseModel):
 class CursistaImportado(BaseModel):
     linha: int
     nome: str
+    apelido: Optional[str] = None
     comunidade: Optional[str] = None  # nome no sistema; None = não achou
     acao: Literal["novo", "atualiza", "erro"]
     erro: Optional[str] = None
@@ -95,6 +98,7 @@ class ImportacaoCursistasResponse(BaseModel):
 class CursistaItem(BaseModel):
     id_cursista: int
     nome: str
+    apelido: Optional[str] = None
     id_comunidade: Optional[int] = None
     comunidade: Optional[str] = None
     status: str
@@ -103,11 +107,14 @@ class CursistaItem(BaseModel):
     endereco: Optional[str] = None
     data_nascimento: Optional[date] = None
     idade: Optional[int] = None
+    responsavel_nome: Optional[str] = None
+    responsavel_telefone: Optional[str] = None
 
 
 class FaltosoEncontro(BaseModel):
     id_cursista: int
     nome: str
+    apelido: Optional[str] = None
     comunidade: Optional[str] = None
     faltas: list[date]  # dias do encontro com Falta ou Justificada
 

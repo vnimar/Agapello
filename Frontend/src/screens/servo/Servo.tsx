@@ -21,6 +21,7 @@ import {
   FrequenciaServoResumo,
 } from "../../services/frequencia/frequencia";
 import Header from "../../../components/Header";
+import NomeComApelido, { nomeExibido, textoDeBusca } from "../../../components/NomeComApelido";
 import { Cores } from "@/constants/theme";
 import { FREQ_MINIMA, FREQ_REGULAR, STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
 import { useAuth } from "../../context/AuthContext";
@@ -30,6 +31,9 @@ import { useAuth } from "../../context/AuthContext";
 interface Servo {
   id: number;
   nome: string;
+  apelido: string | null;
+  responsavel_nome: string | null;
+  responsavel_telefone: string | null;
   telefone: string | null;
   email: string | null;
   endereco: string | null;
@@ -262,7 +266,7 @@ export default function ServosScreen() {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
       result = result.filter((s) =>
-        s.nome
+        textoDeBusca(s)
           .toLowerCase()
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "")
@@ -364,18 +368,17 @@ export default function ServosScreen() {
           >
             <View style={[styles.avatar, inativo && styles.avatarInativo]}>
               <Text style={[styles.avatarText, inativo && styles.avatarTextInativo]}>
-                {getInitials(item.nome)}
+                {getInitials(nomeExibido(item))}
               </Text>
             </View>
 
             <View style={styles.cardInfo}>
               <View style={styles.cardNomeRow}>
-                <Text
+                <NomeComApelido
+                  nome={item.nome}
+                  apelido={item.apelido}
                   style={[styles.cardNome, inativo && styles.cardNomeInativo]}
-                  numberOfLines={1}
-                >
-                  {item.nome}
-                </Text>
+                />
                 {inativo && (
                   <View style={styles.tagInativo}>
                     <Text style={styles.tagInativoText}>Inativo</Text>

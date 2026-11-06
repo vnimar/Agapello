@@ -69,6 +69,7 @@ class UsuarioLogado(BaseModel):
     perfil: PerfilType              # principal (o mais alto); versões antigas do app usam só este
     perfis: list[PerfilType] = []   # todos: o perfil manual + os das pastas do ano
     id_servo: Optional[int] = None
+    apelido: Optional[str] = None  # do servo ligado; o app usa no "Olá"
     trocar_senha: bool = False  # senha temporária: o app obriga a trocar
 
     def tem(self, *perfis: str) -> bool:

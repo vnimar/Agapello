@@ -206,6 +206,7 @@ export default function ContaScreen() {
         onFechar={() => setMeusDados(null)}
         onSalvo={() => {
           setMeusDados(null);
+          recarregarUsuario().catch(() => {}); // o "Olá" usa o apelido
           Alert.alert("Pronto", "Seus dados foram atualizados.");
         }}
       />

@@ -14,8 +14,9 @@ import { Cores } from "@/constants/theme";
 import { DadosServo, putDadosServo } from "../../services/servos/servos";
 import { authStyles as styles } from "../login/Login.styles";
 
-// Dados de contato do servo. Usado em Minha conta (o próprio servo) e em
-// Servos (admin e coord. geral editam qualquer um).
+// Dados de contato, apelido e responsável do servo. Usado em Minha conta (o
+// próprio servo) e em Servos (admin e coord. geral editam qualquer um).
+// Quando o quadrante existir, a edição de admin/coord. geral vai para lá.
 
 export type ServoComDados = DadosServo & { id: number; nome: string; idade?: number | null };
 
@@ -57,18 +58,24 @@ export default function DadosServoModal({
   onFechar: () => void;
   onSalvo: (atualizado: ServoComDados) => void;
 }) {
+  const [apelido, setApelido] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [endereco, setEndereco] = useState("");
   const [nascimento, setNascimento] = useState("");
+  const [responsavelNome, setResponsavelNome] = useState("");
+  const [responsavelTelefone, setResponsavelTelefone] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (!servo) return;
+    setApelido(servo.apelido ?? "");
     setTelefone(servo.telefone ?? "");
     setEmail(servo.email ?? "");
     setEndereco(servo.endereco ?? "");
     setNascimento(dataBr(servo.data_nascimento));
+    setResponsavelNome(servo.responsavel_nome ?? "");
+    setResponsavelTelefone(servo.responsavel_telefone ?? "");
   }, [servo]);
 
   const salvar = async () => {
@@ -89,6 +96,9 @@ export default function DadosServoModal({
         email: emailLimpo || null,
         endereco: endereco.trim() || null,
         data_nascimento: data,
+        apelido: apelido.trim() || null,
+        responsavel_nome: responsavelNome.trim() || null,
+        responsavel_telefone: responsavelTelefone.trim() || null,
       });
       onSalvo({ ...servo, ...(atualizado as ServoComDados) });
     } catch (err: any) {
@@ -105,6 +115,10 @@ export default function DadosServoModal({
           <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
             <Text style={[styles.title, { textAlign: "left" }]}>{titulo}</Text>
             <Text style={[styles.subtitle, { textAlign: "left", marginBottom: 4 }]}>{servo?.nome}</Text>
+
+            <Text style={styles.label}>Apelido</Text>
+            <TextInput style={styles.input} value={apelido} onChangeText={setApelido}
+                       placeholder="Como é chamado (vai no crachá)" placeholderTextColor={Cores.iconeInativo} />
 
             <Text style={styles.label}>Telefone</Text>
             <TextInput style={styles.input} value={telefone} onChangeText={setTelefone}
@@ -126,6 +140,15 @@ export default function DadosServoModal({
                        onChangeText={(t) => setNascimento(mascaraData(t))}
                        placeholder="DD/MM/AAAA" placeholderTextColor={Cores.iconeInativo}
                        keyboardType="number-pad" maxLength={10} />
+
+            <Text style={styles.label}>Responsável (contato)</Text>
+            <TextInput style={styles.input} value={responsavelNome} onChangeText={setResponsavelNome}
+                       placeholder="Nome (pai, mãe ou outro)" placeholderTextColor={Cores.iconeInativo} />
+
+            <Text style={styles.label}>Telefone do responsável</Text>
+            <TextInput style={styles.input} value={responsavelTelefone} onChangeText={setResponsavelTelefone}
+                       placeholder="(00) 00000-0000" placeholderTextColor={Cores.iconeInativo}
+                       keyboardType="phone-pad" />
 
             <TouchableOpacity
               style={[styles.btnPrimary, salvando && styles.btnDisabled]}

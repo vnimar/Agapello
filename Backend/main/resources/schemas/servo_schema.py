@@ -5,11 +5,14 @@ from typing import Optional, List, Literal
 class ServoListItem(BaseModel):
     id: int
     nome: str
+    apelido: Optional[str] = None  # o app mostra em destaque (é o do crachá)
     telefone: Optional[str] = None
     email: Optional[str] = None
     endereco: Optional[str] = None
     data_nascimento: Optional[date] = None
     idade: Optional[int] = None  # calculada pelo banco (fn_idade), nunca guardada
+    responsavel_nome: Optional[str] = None
+    responsavel_telefone: Optional[str] = None
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
     data_saida: Optional[date] = None  # só de quem está inativo
@@ -25,15 +28,24 @@ class ServoDetail(BaseModel):
     idade: Optional[int] = None
     status: Optional[str] = None
     ano_ingresso: Optional[int] = None
+    apelido: Optional[str] = None
+    responsavel_nome: Optional[str] = None
+    responsavel_telefone: Optional[str] = None
 
 class ServoDadosUpdate(BaseModel):
-    """Dados de contato: o próprio servo ou admin/coord. geral. Vazio apaga o campo."""
+    """
+    Dados de contato, apelido e responsável: o próprio servo ou admin/coord. geral.
+    Vazio apaga o campo; campo que não vier no corpo fica como está.
+    """
     telefone: Optional[str] = None
     email: Optional[str] = None
     endereco: Optional[str] = None
     data_nascimento: Optional[date] = None
+    apelido: Optional[str] = None
+    responsavel_nome: Optional[str] = None
+    responsavel_telefone: Optional[str] = None
 
-    @field_validator("telefone", "email", "endereco")
+    @field_validator("telefone", "email", "endereco", "apelido", "responsavel_nome", "responsavel_telefone")
     @classmethod
     def limpar(cls, valor: Optional[str]) -> Optional[str]:
         valor = (valor or "").strip()

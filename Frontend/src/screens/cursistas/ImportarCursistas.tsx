@@ -33,7 +33,7 @@ function Linha({ c }: { c: CursistaImportado }) {
       <View style={{ flex: 1 }}>
         <Text style={styles.pastaNome}>{c.nome || "(sem nome)"}</Text>
         <Text style={styles.pastaPlanilha}>
-          Linha {c.linha}{c.comunidade ? ` · ${c.comunidade}` : ""}
+          Linha {c.linha}{c.comunidade ? ` · ${c.comunidade}` : ""}{c.apelido ? ` · "${c.apelido}"` : ""}
         </Text>
         {c.erro && <Text style={styles.detalheErro}>{c.erro}</Text>}
         {c.avisos.map((a, i) => (

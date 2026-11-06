@@ -1,6 +1,6 @@
 """
 Dados de contato do servo (migration 014): email, endereço, nascimento e a
-idade calculada pelo banco a partir do nascimento.
+idade calculada pelo banco a partir do nascimento. Apelido e responsável (018).
 
 Usa o servo do usuário "servo" do scripts/seed_teste.py e limpa os campos no fim.
 """
@@ -27,7 +27,8 @@ def id_servo(usuarios):
     yield id_servo
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
-            "UPDATE servo SET telefone = %s, email = NULL, endereco = NULL, data_nascimento = NULL"
+            "UPDATE servo SET telefone = %s, email = NULL, endereco = NULL, data_nascimento = NULL,"
+            " apelido = NULL, responsavel_nome = NULL, responsavel_telefone = NULL"
             " WHERE id_servo = %s",
             (telefone, id_servo),
         )
@@ -127,3 +128,33 @@ def test_campo_vazio_apaga(client, headers, id_servo):
 def test_dados_invalidos(client, headers, id_servo, campo, valor):
     resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json={**DADOS, campo: valor})
     assert resposta.status_code == 422, resposta.text
+
+
+# ── Apelido e responsável (migration 018) ────────────────────────────────────
+
+APELIDO = {"apelido": " Oliver ", "responsavel_nome": "Mãe Teste", "responsavel_telefone": "Pai: 6199 Mãe: 6198"}
+
+
+def test_apelido_e_responsavel(client, headers, id_servo):
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json=APELIDO)
+    assert resposta.status_code == 200, resposta.text
+    dados = resposta.json()
+    assert (dados["apelido"], dados["responsavel_nome"], dados["responsavel_telefone"]) == (
+        "Oliver", "Mãe Teste", "Pai: 6199 Mãe: 6198")
+
+    lista = client.get("/servos/", headers=headers("admin")).json()
+    assert next(s for s in lista if s["id"] == id_servo)["apelido"] == "Oliver"
+    # O "Olá" do app usa o apelido de quem está logado
+    assert client.get("/auth/me", headers=headers("servo")).json()["apelido"] == "Oliver"
+
+
+def test_campo_que_nao_vem_fica_como_esta(client, headers, id_servo):
+    """Versões antigas do app mandam só os 4 campos de contato: não podem apagar o apelido."""
+    client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json=APELIDO)
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json=DADOS)
+    assert resposta.status_code == 200, resposta.text
+    dados = resposta.json()
+    assert (dados["apelido"], dados["responsavel_nome"], dados["telefone"]) == ("Oliver", "Mãe Teste", "(11) 99999-0000")
+
+    resposta = client.put(f"/servos/{id_servo}/dados", headers=headers("servo"), json={"apelido": ""})
+    assert resposta.json()["apelido"] is None

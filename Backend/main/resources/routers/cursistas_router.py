@@ -35,6 +35,9 @@ router = APIRouter(prefix="/cursistas", tags=["Cursistas"], dependencies=[Depend
 # Confraternização, reconhecidos pelo nome (fn_missao_de_cursista, migrations 012/013),
 # e desde que a missão conte na frequência.
 
+# Na tela vale o apelido (é como se conhecem); quem não tem aparece pelo nome
+ORDEM_NOME = "COALESCE(c.apelido, c.nome), c.nome"
+
 # Cursistas que entram na chamada: os do ano da missão que já passaram pelo encontro
 CURSISTA_DA_CHAMADA = """
     c.status IN ('ativo', 'concluido', 'promovido')
@@ -119,12 +122,12 @@ def ver_chamada(id_missao: int, usuario: UsuarioLogado = Depends(exigir_cursista
             ids = [c["id_comunidade"] for c in comunidades]
 
             cursor.execute(f"""
-                SELECT c.id_cursista, c.nome, c.id_comunidade, f.status
+                SELECT c.id_cursista, c.nome, c.apelido, c.id_comunidade, f.status
                 FROM cursista c
                 LEFT JOIN frequencia_cursista f
                        ON f.id_cursista = c.id_cursista AND f.id_missao = %(id_missao)s
                 WHERE {CURSISTA_DA_CHAMADA}
-                ORDER BY c.nome
+                ORDER BY {ORDEM_NOME}
             """, {"id_missao": id_missao, "data": missao["data"], "comunidades": ids})
             cursistas = cursor.fetchall()
 
@@ -209,8 +212,8 @@ def frequencia_cursistas(usuario: UsuarioLogado = Depends(exigir_cursistas)):
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             comunidades = _comunidades(cursor, usuario)
-            cursor.execute("""
-                SELECT c.id_cursista, c.nome, c.id_comunidade,
+            cursor.execute(f"""
+                SELECT c.id_cursista, c.nome, c.apelido, c.id_comunidade,
                        COUNT(*) FILTER (WHERE f.status = 'Presente')    AS presente,
                        COUNT(*) FILTER (WHERE f.status = 'Justificada') AS justificada,
                        COUNT(*) FILTER (WHERE f.status = 'Falta')       AS falta,
@@ -228,8 +231,8 @@ def frequencia_cursistas(usuario: UsuarioLogado = Depends(exigir_cursistas)):
                 WHERE c.ano = %(ano)s
                   AND c.status IN ('ativo', 'concluido', 'promovido')
                   AND c.id_comunidade = ANY(%(comunidades)s)
-                GROUP BY c.id_cursista, c.nome, c.id_comunidade
-                ORDER BY c.nome
+                GROUP BY c.id_cursista, c.nome, c.apelido, c.id_comunidade
+                ORDER BY {ORDEM_NOME}
             """, {"ano": ano, "comunidades": [c["id_comunidade"] for c in comunidades]})
             cursistas = cursor.fetchall()
 
@@ -283,14 +286,15 @@ def listar_cursistas(ano: Optional[int] = None):
     ano = ano or date.today().year
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute("""
-                SELECT c.id_cursista, c.nome, c.id_comunidade, co.nome AS comunidade, c.status,
+            cursor.execute(f"""
+                SELECT c.id_cursista, c.nome, c.apelido, c.id_comunidade, co.nome AS comunidade, c.status,
                        c.telefone, c.email, c.endereco, c.data_nascimento,
-                       fn_idade(c.data_nascimento) AS idade
+                       fn_idade(c.data_nascimento) AS idade,
+                       c.responsavel_nome, c.responsavel_telefone
                 FROM cursista c
                 LEFT JOIN comunidade co ON co.id_comunidade = c.id_comunidade
                 WHERE c.ano = %s AND c.status IN ('ativo', 'concluido', 'promovido')
-                ORDER BY co.nome, c.nome
+                ORDER BY co.nome, {ORDEM_NOME}
             """, (ano,))
             return cursor.fetchall()
     except Exception as e:
@@ -298,19 +302,25 @@ def listar_cursistas(ano: Optional[int] = None):
         raise HTTPException(status_code=500, detail="Erro interno.")
 
 
-def _achar_comunidade(texto: str, comunidades: dict[str, tuple[int, str]]) -> tuple[Optional[int], Optional[str], bool]:
-    """(id, nome, conferir). Aceita "Kairos", "Comunidade Kairós"; letra trocada pede conferência."""
+def _achar_comunidade(
+    texto: str, comunidades: dict[str, tuple[int, str]]
+) -> tuple[Optional[int], Optional[str], bool, list[str]]:
+    """
+    (id, nome, conferir, parecidas). Aceita "Kairos", "Comunidade Kairós"; letra
+    trocada pede conferência. Se parecer com mais de uma ("Kayros": Kairós ou
+    Kyrios?), não chuta: devolve as parecidas para virar erro.
+    """
     chave = normalizar(texto)
     if not chave:
-        return None, None, False
+        return None, None, False, []
     for nome_norm, (id_com, nome) in comunidades.items():
         if chave == nome_norm or f" {nome_norm} " in f" {chave} ":
-            return id_com, nome, False
-    parecido = difflib.get_close_matches(chave, list(comunidades), n=1, cutoff=0.8)
-    if parecido:
-        id_com, nome = comunidades[parecido[0]]
-        return id_com, nome, True
-    return None, None, False
+            return id_com, nome, False, []
+    parecidas = difflib.get_close_matches(chave, list(comunidades), n=2, cutoff=0.8)
+    if len(parecidas) == 1:
+        id_com, nome = comunidades[parecidas[0]]
+        return id_com, nome, True, []
+    return None, None, False, sorted(comunidades[p][1] for p in parecidas)
 
 
 @router.post("/importar", response_model=ImportacaoCursistasResponse, dependencies=[Depends(exigir_admin)])
@@ -354,9 +364,10 @@ def importar_cursistas(
             gravar_linhas = []
 
             for lido in lidos:
-                item = CursistaImportado(linha=lido.linha, nome=lido.nome, acao="novo", avisos=list(lido.avisos))
+                item = CursistaImportado(linha=lido.linha, nome=lido.nome, apelido=lido.apelido, acao="novo",
+                                         avisos=list(lido.avisos))
                 chave = normalizar(lido.nome)
-                id_com, nome_com, conferir = _achar_comunidade(lido.comunidade, comunidades)
+                id_com, nome_com, conferir, parecidas = _achar_comunidade(lido.comunidade, comunidades)
                 item.comunidade = nome_com
 
                 if not chave:
@@ -365,6 +376,8 @@ def importar_cursistas(
                     item.erro = f"nome repetido na planilha (linha {vistos[chave]})"
                 elif not lido.comunidade:
                     item.erro = "sem comunidade"
+                elif parecidas:
+                    item.erro = f'comunidade "{lido.comunidade}": é {" ou ".join(parecidas)}?'
                 elif id_com is None:
                     item.erro = f'comunidade "{lido.comunidade}" não existe'
                 vistos.setdefault(chave, lido.linha)
@@ -392,14 +405,17 @@ def importar_cursistas(
                     dados = {
                         "nome": lido.nome, "ano": ano, "id_comunidade": id_com, "telefone": lido.telefone,
                         "email": lido.email, "endereco": lido.endereco, "nascimento": lido.nascimento,
-                        "id": existente,
+                        "apelido": lido.apelido, "responsavel_nome": lido.responsavel_nome,
+                        "responsavel_telefone": lido.responsavel_telefone, "id": existente,
                     }
                     if existente is None:
                         cursor.execute("""
                             INSERT INTO cursista (nome, ano, status, id_comunidade, telefone, email,
-                                                  endereco, data_nascimento)
+                                                  endereco, data_nascimento, apelido,
+                                                  responsavel_nome, responsavel_telefone)
                             VALUES (%(nome)s, %(ano)s, 'ativo', %(id_comunidade)s, %(telefone)s, %(email)s,
-                                    %(endereco)s, %(nascimento)s)
+                                    %(endereco)s, %(nascimento)s, %(apelido)s,
+                                    %(responsavel_nome)s, %(responsavel_telefone)s)
                         """, dados)
                     else:
                         cursor.execute("""
@@ -408,7 +424,10 @@ def importar_cursistas(
                                 telefone = COALESCE(%(telefone)s, telefone),
                                 email = COALESCE(%(email)s, email),
                                 endereco = COALESCE(%(endereco)s, endereco),
-                                data_nascimento = COALESCE(%(nascimento)s, data_nascimento)
+                                data_nascimento = COALESCE(%(nascimento)s, data_nascimento),
+                                apelido = COALESCE(%(apelido)s, apelido),
+                                responsavel_nome = COALESCE(%(responsavel_nome)s, responsavel_nome),
+                                responsavel_telefone = COALESCE(%(responsavel_telefone)s, responsavel_telefone)
                             WHERE id_cursista = %(id)s
                         """, dados)
 
@@ -442,7 +461,7 @@ def listar_faltosos(ano: Optional[int] = None):
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(f"""
-                SELECT c.id_cursista, c.nome, co.nome AS comunidade,
+                SELECT c.id_cursista, c.nome, c.apelido, co.nome AS comunidade,
                        array_agg(m.data ORDER BY m.data) AS faltas
                 FROM cursista c
                 JOIN frequencia_cursista f ON f.id_cursista = c.id_cursista
@@ -451,8 +470,8 @@ def listar_faltosos(ano: Optional[int] = None):
                 LEFT JOIN comunidade co ON co.id_comunidade = c.id_comunidade
                 WHERE c.ano = %(ano)s AND c.status IN %(status)s
                   AND f.id_missao IN ({SQL_DIAS_ENCONTRO})
-                GROUP BY c.id_cursista, c.nome, co.nome
-                ORDER BY co.nome, c.nome
+                GROUP BY c.id_cursista, c.nome, c.apelido, co.nome
+                ORDER BY co.nome, {ORDEM_NOME}
             """, {"ano": ano, "status": STATUS_CURSISTA})
             return cursor.fetchall()
     except Exception as e:

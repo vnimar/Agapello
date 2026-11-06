@@ -24,6 +24,7 @@ import {
 import { StatusFrequencia } from "../../services/frequencia/frequencia";
 import Header from "../../../components/Header";
 import ListaCursistas from "./ListaCursistas";
+import NomeComApelido, { nomeExibido } from "../../../components/NomeComApelido";
 import { Cores } from "@/constants/theme";
 import { STATUS_CORES } from "@/constants/frequencia";
 
@@ -166,9 +167,10 @@ function Chamada() {
     return (
       <View style={styles.servoRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(item.nome)}</Text>
+          <Text style={styles.avatarText}>{getInitials(nomeExibido(item))}</Text>
         </View>
-        <Text style={styles.servoNome} numberOfLines={1}>{item.nome}</Text>
+        <NomeComApelido nome={item.nome} apelido={item.apelido} style={styles.servoNome}
+                        containerStyle={{ flex: 1 }} />
         <View style={styles.statusButtons}>
           {STATUS_LISTA.map((s) => {
             const ativo = statusAtual === s;
@@ -183,7 +185,7 @@ function Chamada() {
                 ]}
                 onPress={() => podeEditar && setMarcacoes((prev) => ({ ...prev, [item.id_cursista]: s }))}
                 activeOpacity={podeEditar ? 0.7 : 1}
-                accessibilityLabel={`${item.nome}: ${s}`}
+                accessibilityLabel={`${nomeExibido(item)}: ${s}`}
               >
                 <Text style={[styles.statusBtnText, ativo && { color: cor.texto }]}>
                   {s === "Presente" ? "P" : s === "Justificada" ? "J" : "F"}

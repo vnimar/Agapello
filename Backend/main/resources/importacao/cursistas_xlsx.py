@@ -3,8 +3,9 @@ Leitura da planilha de cursistas do encontro (.xlsx).
 
 Uma linha por cursista, com cabeçalho. As colunas são achadas pelo nome, em
 qualquer ordem; só Nome e Comunidade são obrigatórias:
-    Nome | Comunidade | Email | Telefone | Endereço | Data de nascimento
-Colunas que não forem reconhecidas são ignoradas.
+    Nome | Apelido | Comunidade | Email | Telefone | Endereço | Data de nascimento
+    | Nome do responsável | Telefone do responsável
+Colunas que não forem reconhecidas (Idade, Visitadores...) são ignoradas.
 Aqui só se lê a planilha; quem confere comunidades e repetidos é o router.
 """
 import io
@@ -17,10 +18,15 @@ from openpyxl import load_workbook
 
 from .pastas_xlsx import PlanilhaInvalida, normalizar
 
-# Campo → como o cabeçalho pode começar (já normalizado)
+# Campo → como o cabeçalho pode começar (já normalizado). Os do responsável vêm
+# antes porque "Nome do responsável" também começa com "nome".
 _CABECALHOS = {
+    "responsavel_nome": ("nome do responsavel", "nome responsavel", "responsavel"),
+    "responsavel_telefone": ("telefone do responsavel", "telefone responsavel", "contato do responsavel",
+                             "celular do responsavel"),
     "nome": ("nome",),
-    "comunidade": ("comunidade",),
+    "apelido": ("apelido",),
+    "comunidade": ("comunidade", "comunindade"),  # a planilha de 2026 veio com "COMUNINDADE"
     "email": ("email", "e mail"),
     "telefone": ("telefone", "celular", "whatsapp", "contato"),
     "endereco": ("endereco",),
@@ -34,10 +40,13 @@ class CursistaLido:
     linha: int
     nome: str
     comunidade: str
+    apelido: Optional[str] = None
     email: Optional[str] = None
     telefone: Optional[str] = None
     endereco: Optional[str] = None
     nascimento: Optional[date] = None
+    responsavel_nome: Optional[str] = None
+    responsavel_telefone: Optional[str] = None
     avisos: list[str] = field(default_factory=list)  # campos ignorados por estarem inválidos
 
 
@@ -100,6 +109,9 @@ def ler_planilha(conteudo: bytes) -> list[CursistaLido]:
             continue  # linha vazia
         lido = CursistaLido(linha=i, nome=nome, comunidade=comunidade)
 
+        apelido = _texto(valor(r, "apelido"))
+        lido.apelido = apelido if normalizar(apelido) else None  # "." ou "-" = sem apelido
+
         email = _texto(valor(r, "email")).lower()
         if email and not _EMAIL.match(email):
             lido.avisos.append(f'email "{email}" inválido (ignorado)')
@@ -108,6 +120,8 @@ def ler_planilha(conteudo: bytes) -> list[CursistaLido]:
 
         lido.telefone = _texto(valor(r, "telefone")) or None
         lido.endereco = _texto(valor(r, "endereco")) or None
+        lido.responsavel_nome = _texto(valor(r, "responsavel_nome")) or None
+        lido.responsavel_telefone = _texto(valor(r, "responsavel_telefone")) or None
 
         bruto = valor(r, "nascimento")
         if _texto(bruto):

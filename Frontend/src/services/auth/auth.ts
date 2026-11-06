@@ -16,6 +16,7 @@ export interface Usuario {
   perfil: Perfil;            // principal (o mais alto)
   perfis?: Perfil[];         // todos: o manual + os das pastas do ano
   id_servo: number | null;
+  apelido?: string | null;   // do servo ligado; vai no "Olá"
   trocar_senha?: boolean;  // senha temporária: precisa trocar antes de usar o app
 }
 

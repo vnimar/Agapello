@@ -111,7 +111,7 @@ def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
         with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT u.id_usuario, u.nome, u.email, u.perfil, u.id_servo, u.trocar_senha,
-                       COALESCE(pp.perfis, '{}') AS perfis_pasta
+                       COALESCE(pp.perfis, '{}') AS perfis_pasta, s.apelido
                 FROM usuario u
                 LEFT JOIN servo s ON s.id_servo = u.id_servo
                 LEFT JOIN vw_perfis_pasta pp ON pp.id_servo = u.id_servo
@@ -126,7 +126,7 @@ def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
     perfis = ordenar_perfis([row[3], *row[6]])
     return UsuarioLogado(
         id=row[0], nome=row[1], email=row[2], perfil=perfis[0], perfis=perfis,
-        id_servo=row[4], trocar_senha=row[5],
+        id_servo=row[4], trocar_senha=row[5], apelido=row[7],
     )
 
 

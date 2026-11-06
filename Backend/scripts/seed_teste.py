@@ -26,7 +26,7 @@ BACKEND = Path(__file__).resolve().parent.parent
 DOMINIO = "@teste.agapello"
 ANO = date.today().year
 
-COMUNIDADES = ["Agnus Dei", "Kairós", "Kenosis", "Kyrius", "Maranata"]
+COMUNIDADES = ["Agnus Dei", "Kairós", "Kenosis", "Kyrios", "Maranata"]
 
 TABELAS = [
     "frequencia_cursista", "visita_responsavel", "visita_cursista", "cursista",
@@ -155,7 +155,7 @@ def main() -> int:
             s_bloqueado = novo_servo("Teste Login Desativado", pasta["Ornamentação"])
 
             # Coordenadores e tutores das outras comunidades (sem login)
-            for nome in ["Agnus Dei", "Kenosis", "Kyrius"]:
+            for nome in ["Agnus Dei", "Kenosis", "Kyrios"]:
                 novo_servo(f"Teste Coord. {nome}", pasta_coord[nome], ingresso=ANO - 2)
                 novo_servo(f"Teste Tutor {nome}", pasta_tutor[nome])
 

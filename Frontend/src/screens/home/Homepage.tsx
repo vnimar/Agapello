@@ -84,7 +84,8 @@ function Atalho({icone, texto, onPress}: {icone: NomeIcone; texto: string; onPre
 const Home: React.FC = () => {
   const router = useRouter();
   const {usuario, cuidaDosServos, cuidaDosCursistas} = useAuth();
-  const primeiroNome = usuario?.nome.split(' ')[0] || 'Servo';
+  // Apelido (é como se conhecem); sem apelido, o primeiro nome
+  const nomeSaudacao = usuario?.apelido || usuario?.nome.split(' ')[0] || 'Servo';
 
   const [missao, setMissao] = useState<Missao | null>(null);
   const [proximas, setProximas] = useState<Missao[]>([]);
@@ -134,7 +135,7 @@ const Home: React.FC = () => {
     <ScreenWrapper scrollable={true} backgroundColor={Cores.fundo}>
       <Header title="Agapello" />
 
-      <Text style={styles.saudacao}>Olá, {primeiroNome}</Text>
+      <Text style={styles.saudacao}>Olá, {nomeSaudacao}</Text>
 
       {/* Próxima missão */}
       <View style={styles.missaoCard}>

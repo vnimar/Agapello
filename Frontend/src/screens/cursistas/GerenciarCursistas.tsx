@@ -26,6 +26,7 @@ import {
 } from "../../services/cursistas/cursistas";
 import { styles as base } from "../pastas/ImportarPastas.styles";
 import { dataBr } from "../servo/DadosServoModal";
+import NomeComApelido, { textoDeBusca } from "../../../components/NomeComApelido";
 
 // Cursistas do ano (admin e coord. geral): importar a planilha do encontro,
 // cortar quem faltou ao encontro e remover quem desistiu ou entrou por engano.
@@ -66,7 +67,7 @@ export default function GerenciarCursistasScreen() {
     const termo = semAcento(busca.trim());
     const grupos = new Map<string, CursistaItem[]>();
     (cursistas ?? [])
-      .filter((c) => !termo || semAcento(c.nome).includes(termo))
+      .filter((c) => !termo || semAcento(textoDeBusca(c)).includes(termo))
       .forEach((c) => {
         const nome = c.comunidade ?? "Sem comunidade";
         grupos.set(nome, [...(grupos.get(nome) ?? []), c]);
@@ -177,7 +178,7 @@ export default function GerenciarCursistasScreen() {
                     <Ionicons name={marcado ? "checkbox" : "square-outline"} size={22}
                               color={marcado ? STATUS_CORES.Falta.forte : Cores.iconeInativo} />
                     <View style={{ flex: 1 }}>
-                      <Text style={base.pastaNome}>{f.nome}</Text>
+                      <NomeComApelido nome={f.nome} apelido={f.apelido} style={base.pastaNome} />
                       <Text style={base.pastaPlanilha}>
                         {f.comunidade} · faltou {f.faltas.map(dataBr).join(" e ")}
                       </Text>
@@ -224,7 +225,7 @@ export default function GerenciarCursistasScreen() {
                   <TouchableOpacity key={c.id_cursista} style={[base.pasta, local.item]}
                                     onPress={() => removerUm(c)} disabled={excluindo} activeOpacity={0.7}>
                     <View style={{ flex: 1 }}>
-                      <Text style={base.pastaNome}>{c.nome}</Text>
+                      <NomeComApelido nome={c.nome} apelido={c.apelido} style={base.pastaNome} />
                       {(c.telefone || c.idade !== null) && (
                         <Text style={base.pastaPlanilha}>
                           {[c.telefone, c.idade !== null ? `${c.idade} anos` : null].filter(Boolean).join(" · ")}

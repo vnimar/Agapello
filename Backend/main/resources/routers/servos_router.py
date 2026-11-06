@@ -18,7 +18,12 @@ router = APIRouter(prefix="/servos", tags=["Servos"])
 
 # Colunas do ServoDetail, na ordem de _detalhe()
 COLUNAS_DETALHE = """id_servo, nome, telefone, status, ano_ingresso,
-                     email, endereco, data_nascimento, fn_idade(data_nascimento)"""
+                     email, endereco, data_nascimento, fn_idade(data_nascimento),
+                     apelido, responsavel_nome, responsavel_telefone"""
+
+# Campos que o PUT /dados grava (os de contato + apelido e responsável)
+CAMPOS_DADOS = ("telefone", "email", "endereco", "data_nascimento",
+                "apelido", "responsavel_nome", "responsavel_telefone")
 
 
 # Inativo há mais de 2 anos: entra na revisão anual (e só volta como exceção)
@@ -36,6 +41,9 @@ def _detalhe(servo) -> ServoDetail:
         endereco=servo[6],
         data_nascimento=servo[7],
         idade=servo[8],
+        apelido=servo[9],
+        responsavel_nome=servo[10],
+        responsavel_telefone=servo[11],
     )
 
 @router.get("/", response_model=list[ServoListItem], dependencies=[Depends(exigir_coord_servos)])
@@ -49,11 +57,14 @@ def listar_servos():
             cursor.execute("""
                SELECT s.id_servo AS id,
                       s.nome,
+                      s.apelido,
                       s.telefone,
                       s.email,
                       s.endereco,
                       s.data_nascimento,
                       fn_idade(s.data_nascimento) AS idade,
+                      s.responsavel_nome,
+                      s.responsavel_telefone,
                       s.status,
                       s.ano_ingresso,
                       a.data_saida,
@@ -70,7 +81,8 @@ def listar_servos():
                -- Excluídos vêm junto (status 'Excluido') para as chamadas antigas
                -- continuarem com o nome; as telas tiram eles das listas
                GROUP BY s.id_servo, a.data_saida
-               ORDER BY s.nome
+               -- Na tela vale o apelido (é como se conhecem)
+               ORDER BY COALESCE(s.apelido, s.nome), s.nome
            """)
             servos = cursor.fetchall()
 
@@ -132,7 +144,8 @@ def excluir_servos(body: ExcluirServos):
             cursor.execute("""
                 UPDATE servo
                 SET status = 'Excluido', excluido_em = now(),
-                    telefone = NULL, email = NULL, endereco = NULL, data_nascimento = NULL, foto_url = NULL
+                    telefone = NULL, email = NULL, endereco = NULL, data_nascimento = NULL, foto_url = NULL,
+                    responsavel_nome = NULL, responsavel_telefone = NULL
                 WHERE id_servo = ANY(%s)
             """, (ids,))
             cursor.execute("UPDATE servo_afastamento SET motivo = NULL WHERE id_servo = ANY(%s)", (ids,))
@@ -196,13 +209,20 @@ def editar_dados(
     if usuario.id_servo != servo_id and not usuario.tem(*PERFIS_ADMIN):
         raise HTTPException(status_code=403, detail="Você só pode editar os seus próprios dados.")
 
+    # Só os campos enviados: versões antigas do app não mandam apelido nem
+    # responsável, e isso não pode apagar o que já está gravado
+    campos = [c for c in CAMPOS_DADOS if c in body.model_fields_set]
+
     try:
         with get_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(f"""
-                UPDATE servo SET telefone = %s, email = %s, endereco = %s, data_nascimento = %s
-                WHERE id_servo = %s
-                RETURNING {COLUNAS_DETALHE}
-            """, (body.telefone, body.email, body.endereco, body.data_nascimento, servo_id))
+            if campos:
+                cursor.execute(f"""
+                    UPDATE servo SET {", ".join(f"{c} = %s" for c in campos)}
+                    WHERE id_servo = %s
+                    RETURNING {COLUNAS_DETALHE}
+                """, (*(getattr(body, c) for c in campos), servo_id))
+            else:
+                cursor.execute(f"SELECT {COLUNAS_DETALHE} FROM servo WHERE id_servo = %s", (servo_id,))
             servo = cursor.fetchone()
 
     except Exception as e:

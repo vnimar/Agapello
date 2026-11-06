@@ -83,6 +83,46 @@ def test_le_colunas_em_qualquer_ordem():
     assert bia.email is None and any("email" in a for a in bia.avisos)
 
 
+def test_le_planilha_no_formato_do_encontro():
+    """Mesmo formato da planilha de 2026 (dados fictícios): título em cima, coluna #,
+    cabeçalho "COMUNINDADE", responsável, idade e visitadores (ignorados) e linhas de região."""
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["*"])
+    ws.append([])
+    ws.append([None, "Distribuição de Cursistas por Endereços"])
+    ws.append([None, "#", "COMUNINDADE", "Nome Completo do(a) jovem:", "Apelido do(a) jovem (se houver):",
+               "Data de nascimento:", "Idade", "Telefone do(a) jovem:", "Endereço do(a) jovem:",
+               "Nome do Responsável pelo(a) jovem (pai, mãe ou outro):",
+               "Telefone do Responsável pelo(a) jovem (pai, mãe ou outro):", "Visitadores"])
+    ws.append([None, 1, "Kairós", "Teste Import Ana ", "Aninha ", datetime(2009, 7, 9), 16, "(61) 99999-0001 ",
+               "Quadra 1, Casa 1", "Mãe Teste ", "Mãe: (61) 98888-0001", "1) Fulano (Tios Beltrano)"])
+    ws.append([None, "Região Teste"])
+    ws.append([None, 2, "Kyrios", "Teste Import Bia", ".", datetime(2010, 1, 2), 15, "(61) 99999-0002",
+               "Quadra 2", "Pai Teste", 61988880002, None])
+    saida = io.BytesIO()
+    wb.save(saida)
+
+    ana, bia = ler_planilha(saida.getvalue())
+    assert (ana.linha, ana.nome, ana.apelido, ana.comunidade) == (5, "Teste Import Ana", "Aninha", "Kairós")
+    assert (ana.telefone, ana.nascimento) == ("(61) 99999-0001", date(2009, 7, 9))
+    assert (ana.responsavel_nome, ana.responsavel_telefone) == ("Mãe Teste", "Mãe: (61) 98888-0001")
+    assert (bia.linha, bia.apelido, bia.comunidade) == (7, None, "Kyrios")  # "." = sem apelido
+    assert bia.responsavel_telefone == "61988880002"
+
+
+def test_importa_apelido_e_responsavel(client, admin):
+    cabecalho = ("Nome", "Apelido", "Comunidade", "Nome do responsável", "Telefone do responsável")
+    enviar(client, admin, planilha([["Teste Import Ana", "Aninha", "Kyrios", "Mãe Teste", "6198"]],
+                                   cabecalho=cabecalho), confirmar=True)
+    # Reimportar com as células vazias não apaga
+    enviar(client, admin, planilha([["Teste Import Ana", None, "Kyrios", None, None]], cabecalho=cabecalho),
+           confirmar=True)
+    ana = next(c for c in client.get("/cursistas/", headers=admin).json() if c["nome"] == "Teste Import Ana")
+    assert (ana["apelido"], ana["comunidade"], ana["responsavel_nome"], ana["responsavel_telefone"]) == (
+        "Aninha", "Kyrios", "Mãe Teste", "6198")
+
+
 def test_data_invalida_vira_aviso():
     (lido,) = ler_planilha(planilha([["Teste Import Ana", "Kairós", "31/02/2000"]],
                                     cabecalho=("Nome", "Comunidade", "Nascimento")))
@@ -145,13 +185,19 @@ def test_erro_impede_gravar(client, admin):
 
 def test_avisos_para_conferir(client, admin):
     corpo = enviar(client, admin, planilha([
-        ["Teste Import Ana", "Kayros"],      # letra trocada
+        ["Teste Import Ana", "Kairo"],       # letra faltando
         ["Teste Servo 1", "Agnus Dei"],      # nome de servo (não é "Teste Import": não grava aqui)
     ])).json()
     assert corpo["erros"] == []
     assert corpo["cursistas"][0]["comunidade"] == "Kairós"
-    assert any("Kayros" in a for a in corpo["avisos"])
+    assert any("Kairo" in a for a in corpo["avisos"])
     assert any("servo com este nome" in a for a in corpo["avisos"])
+
+
+def test_comunidade_ambigua_nao_chuta(client, admin):
+    corpo = enviar(client, admin, planilha([["Teste Import Ana", "Kayros"]])).json()
+    assert corpo["cursistas"][0]["acao"] == "erro"
+    assert "Kairós ou Kyrios" in corpo["cursistas"][0]["erro"]
 
 
 def test_so_ano_atual_ou_seguinte(client, admin):

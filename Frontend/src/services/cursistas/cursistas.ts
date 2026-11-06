@@ -15,6 +15,7 @@ export interface MissaoCursista {
 export interface CursistaChamada {
   id_cursista: number;
   nome: string;
+  apelido?: string | null;
   status: StatusFrequencia | null;  // null = chamada ainda não feita
 }
 
@@ -54,6 +55,7 @@ export function salvarChamadaCursistas(
 export interface CursistaFrequencia {
   id_cursista: number;
   nome: string;
+  apelido?: string | null;
   presente: number;
   justificada: number;
   falta: number;
@@ -76,6 +78,7 @@ export function getFrequenciaCursistas() {
 export interface CursistaImportado {
   linha: number;
   nome: string;
+  apelido?: string | null;
   comunidade: string | null; // null = comunidade não achada
   acao: "novo" | "atualiza" | "erro";
   erro: string | null;
@@ -96,6 +99,7 @@ export interface ImportacaoCursistas {
 export interface CursistaItem {
   id_cursista: number;
   nome: string;
+  apelido?: string | null;
   id_comunidade: number | null;
   comunidade: string | null;
   status: string;
@@ -104,11 +108,14 @@ export interface CursistaItem {
   endereco: string | null;
   data_nascimento: string | null;
   idade: number | null;
+  responsavel_nome?: string | null;
+  responsavel_telefone?: string | null;
 }
 
 export interface FaltosoEncontro {
   id_cursista: number;
   nome: string;
+  apelido?: string | null;
   comunidade: string | null;
   faltas: string[]; // dias do encontro (YYYY-MM-DD)
 }

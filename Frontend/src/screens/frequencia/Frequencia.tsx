@@ -27,6 +27,7 @@ import {
   MissaoComFrequencia
 } from "../../services/frequencia/frequencia";
 import Header from '../../../components/Header';
+import NomeComApelido, { nomeExibido, textoDeBusca } from '../../../components/NomeComApelido';
 import { Cores } from "@/constants/theme";
 import { STATUS_CORES } from "@/constants/frequencia";
 
@@ -42,6 +43,7 @@ interface Missao {
 interface ServoNormalizado {
   id: number;
   nome: string;
+  apelido: string | null;
   status: string | null;
 }
 
@@ -101,7 +103,7 @@ export default function FrequenciaScreen() {
   const servosFiltrados = useMemo(() => {
     if (!busca.trim()) return servosChamada;
     const q = normalize(busca);
-    return servosChamada.filter((s) => normalize(s.nome).includes(q));
+    return servosChamada.filter((s) => normalize(textoDeBusca(s)).includes(q));
   }, [busca, servosChamada]);
 
   // Filtra mantendo a ordem da API (da mais recente para a mais antiga)
@@ -185,6 +187,7 @@ export default function FrequenciaScreen() {
         .map((s: any) => ({
           id: s.id_servo ?? s.id,
           nome: s.nome || "Sem nome",
+          apelido: s.apelido ?? null,
           status: s.status ?? null,
         }));
 
@@ -329,9 +332,10 @@ export default function FrequenciaScreen() {
     return (
       <View style={styles.servoRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(item.nome)}</Text>
+          <Text style={styles.avatarText}>{getInitials(nomeExibido(item))}</Text>
         </View>
-        <Text style={styles.servoNome} numberOfLines={1}>{item.nome}</Text>
+        <NomeComApelido nome={item.nome} apelido={item.apelido} style={styles.servoNome}
+                        containerStyle={{ flex: 1 }} />
         <View style={styles.statusButtons}>
           {STATUS_LISTA.map((s) => {
             const ativo = statusAtual === s;
@@ -346,7 +350,7 @@ export default function FrequenciaScreen() {
                 ]}
                 onPress={() => podeEditar && marcarStatus(item.id, s)}
                 activeOpacity={podeEditar ? 0.7 : 1}
-                accessibilityLabel={`${item.nome}: ${s}`}
+                accessibilityLabel={`${nomeExibido(item)}: ${s}`}
               >
                 <Text style={[styles.statusBtnText, ativo && { color: cor.texto }]}>
                   {s === "Presente" ? "P" : s === "Justificada" ? "J" : "F"}
