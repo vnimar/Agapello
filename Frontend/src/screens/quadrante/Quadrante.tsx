@@ -43,13 +43,15 @@ function semAcento(texto: string) {
 }
 
 // "Encontro: Cozinha · Pós: Música (coord.)"
+// Pastas de um momento numa linha só: "Música, Social e Eventos (coord.)"
+function pastasDo(pastas: PastaQuadrante[], momento: "encontro" | "pos") {
+  return pastas.filter((p) => p.momento === momento).map((p) => p.nome + (p.coordenador ? " (coord.)" : "")).join(", ");
+}
+
 function resumoPastas(pastas: PastaQuadrante[]) {
-  const nomes = (momento: string) =>
-    pastas.filter((p) => p.momento === momento).map((p) => p.nome + (p.coordenador ? " (coord.)" : ""));
-  return [
-    nomes("encontro").length ? `Encontro: ${nomes("encontro").join(", ")}` : null,
-    nomes("pos").length ? `Pós: ${nomes("pos").join(", ")}` : null,
-  ].filter(Boolean).join(" · ");
+  const encontro = pastasDo(pastas, "encontro");
+  const pos = pastasDo(pastas, "pos");
+  return [encontro && `Encontro: ${encontro}`, pos && `Pós: ${pos}`].filter(Boolean).join(" · ");
 }
 
 // Números de um campo de telefone livre ("Pai: (61) 9... Mãe: (61) 9...")
@@ -104,12 +106,9 @@ function Detalhes({ pessoa, onEditar }: { pessoa: Pessoa; onEditar?: () => void 
     linhas.push({ rotulo: "Tel. do responsável", valor: p.responsavel_telefone, telefone: true });
   }
   if (pessoa.tipo === "servo") {
-    pessoa.p.pastas.forEach((pasta) =>
-      linhas.push({
-        rotulo: pasta.momento === "encontro" ? "No encontro" : "No pós",
-        valor: pasta.nome + (pasta.coordenador ? " (coordenador)" : ""),
-      })
-    );
+    // Uma linha por momento; "—" deixa à vista quem ficou sem pasta
+    linhas.push({ rotulo: "Encontro", valor: pastasDo(pessoa.p.pastas, "encontro") || "—" });
+    linhas.push({ rotulo: "Pós-encontro", valor: pastasDo(pessoa.p.pastas, "pos") || "—" });
     if (pessoa.p.ano_ingresso) linhas.push({ rotulo: "Servo desde", valor: String(pessoa.p.ano_ingresso) });
   } else if (pessoa.p.comunidade) {
     linhas.push({ rotulo: "Comunidade", valor: pessoa.p.comunidade });
