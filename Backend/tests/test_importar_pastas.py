@@ -177,7 +177,7 @@ def test_previa_nao_grava(client, admin):
 def test_confirmar_substitui_o_ano(client, admin):
     resposta = enviar(client, admin, planilha(PLANILHA_OK), confirmar=True)
     assert resposta.status_code == 200, resposta.text
-    assert resposta.json()["gravados"] == 5
+    assert resposta.json()["gravados"] == 6
 
     assert lancamentos() == {
         ("Teste Servo 1", "Música", "encontro", True),
@@ -185,6 +185,44 @@ def test_confirmar_substitui_o_ano(client, admin):
         ("Teste Servo 1", "Música", "pos", True),
         ("Teste Servo 3", "Música", "pos", False),
         ("Teste Servo 5", "Tutor da Comunidade de Cursistas: Kenosis", "pos", True),
+        # X nos dois lados e nomes só no Pós: a mesma pessoa no Encontro
+        ("Teste Servo 5", "Tutor da Comunidade de Cursistas: Kenosis", "encontro", True),
+    }
+
+
+def test_lado_sem_nomes_recebe_a_mesma_equipe(client, admin):
+    """Pasta dos dois momentos com nomes só num lado, e pasta irmã vazia no Pós:
+    a mesma equipe vale para o outro lado (com aviso na prévia)."""
+    resposta = enviar(client, admin, planilha([
+        {"funcao": "Música", "e": 1, "p": 1, "pc": ["Teste Servo 1"], "pm": ["Teste Servo 3"]},
+        {"funcao": "Intercessão", "e": 1, "ec": ["Teste Servo 5"], "em": ["Teste Servo 4"]},
+        {"funcao": "Espiritualidade e Intercessão", "p": 1},
+    ]), confirmar=True)
+    assert resposta.status_code == 200, resposta.text
+    corpo = resposta.json()
+    assert corpo["erros"] == []
+    assert any("Música" in a and "recebeu a equipe" in a for a in corpo["avisos"])
+    assert any("Espiritualidade e Intercessão" in a for a in corpo["avisos"])
+
+    assert lancamentos() == {
+        ("Teste Servo 1", "Música", "pos", True),
+        ("Teste Servo 3", "Música", "pos", False),
+        ("Teste Servo 1", "Música", "encontro", True),
+        ("Teste Servo 3", "Música", "encontro", False),
+        ("Teste Servo 5", "Intercessão", "encontro", True),
+        ("Teste Servo 4", "Intercessão", "encontro", False),
+        ("Teste Servo 5", "Espiritualidade e Intercessão", "pos", True),
+        ("Teste Servo 4", "Espiritualidade e Intercessão", "pos", False),
+    }
+
+
+def test_lados_com_nomes_diferentes_ficam_como_estao(client, admin):
+    enviar(client, admin, planilha([
+        {"funcao": "Música", "e": 1, "p": 1, "ec": ["Teste Servo 1"], "pc": ["Teste Servo 3"]},
+    ]), confirmar=True)
+    assert lancamentos() == {
+        ("Teste Servo 1", "Música", "encontro", True),
+        ("Teste Servo 3", "Música", "pos", True),
     }
 
 

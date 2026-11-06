@@ -92,9 +92,13 @@ def importar_pastas(
     conn = getConnection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT id_pasta, nome FROM pasta")
-            pastas_sistema = cursor.fetchall()
+            cursor.execute("SELECT id_pasta, nome, momento, id_pasta_principal FROM pasta")
+            linhas_pasta = cursor.fetchall()
+            pastas_sistema = [(i, n) for i, n, _, _ in linhas_pasta]
             nome_pasta = dict(pastas_sistema)
+            momento_pasta = {i: m for i, _, m, _ in linhas_pasta}
+            # Pastas irmãs: a mesma equipe com outro nome no Pós (id_pasta_principal, migration 009)
+            irmas = [(principal, i) for i, _, _, principal in linhas_pasta if principal]
             # Excluído não recebe pasta: se voltou, entra como cursista novo
             cursor.execute("SELECT id_servo, nome, status FROM servo WHERE status <> 'Excluido'")
             servos = cursor.fetchall()
@@ -120,8 +124,13 @@ def importar_pastas(
                                        servo=nome_servo[id_servo], conferir=conferir)
 
             resultado: list[PastaImportada] = []
+            na_planilha: set[int] = set()
+            marcados: set[tuple[int, str]] = set()  # (pasta, momento) com o "X" na planilha
             for lida in lidas:
                 id_pasta, conferir = achar(lida.funcao, pastas_sistema)
+                if id_pasta:
+                    na_planilha.add(id_pasta)
+                    marcados |= {(id_pasta, m) for m in MOMENTOS if lida.equipes[m].marcada}
                 tem_gente = any(e.coordenadores or e.membros for e in lida.equipes.values())
                 if id_pasta is None and tem_gente:
                     avisos.append(f'Linha {lida.linha}: a pasta "{lida.funcao}" não foi identificada no sistema '
@@ -146,19 +155,47 @@ def importar_pastas(
                     pasta=nome_pasta.get(id_pasta), conferir=conferir, equipes=equipes,
                 ))
 
-            # Lançamentos: (servo, pasta, momento) → coordenador; quem aparece nos dois papéis fica coordenador
-            lancamentos: dict[tuple[int, int, str], tuple[bool, list[PessoaImportada]]] = {}
+            # Equipe de cada (pasta, momento): [(coordenador, pessoa)]
+            equipe_de: dict[tuple[int, str], list[tuple[bool, PessoaImportada]]] = {}
             for p in resultado:
                 if p.id_pasta is None:
                     continue
                 for e in p.equipes:
-                    for coordenador, lista in ((True, e.coordenadores), (False, e.membros)):
-                        for pe in lista:
-                            if pe.id_servo is None:
-                                continue
-                            chave = (pe.id_servo, p.id_pasta, e.momento)
-                            coord_antes, pessoas = lancamentos.get(chave, (False, []))
-                            lancamentos[chave] = (coord_antes or coordenador, pessoas + [pe])
+                    equipe_de.setdefault((p.id_pasta, e.momento), []).extend(
+                        [(True, pe) for pe in e.coordenadores] + [(False, pe) for pe in e.membros])
+
+            # Quem está numa pasta serve nela nos dois momentos em que ela existe: se a
+            # planilha marcou o "X" dos dois lados mas trouxe os nomes só de um, o outro
+            # recebe as mesmas pessoas. Vale também para as pastas irmãs (nome diferente
+            # no Encontro e no Pós), mesmo que a irmã nem esteja na planilha.
+            def completar(de: tuple[int, str], para: tuple[int, str]):
+                origem = equipe_de.get(de, [])
+                if equipe_de.get(para) or not any(pe.id_servo for _, pe in origem):
+                    return
+                if para[0] in na_planilha and para not in marcados:
+                    return
+                equipe_de[para] = origem
+                (id_de, m_de), (id_para, m_para) = de, para
+                avisos.append(f'"{nome_pasta[id_para]}" ({NOME_MOMENTO[m_para]}) estava sem nomes: '
+                              f'recebeu a equipe de "{nome_pasta[id_de]}" ({NOME_MOMENTO[m_de]}).')
+
+            for id_pasta, momento in momento_pasta.items():
+                if momento == "ambos":
+                    completar((id_pasta, "pos"), (id_pasta, "encontro"))
+                    completar((id_pasta, "encontro"), (id_pasta, "pos"))
+            for id_encontro, id_pos in irmas:
+                completar((id_encontro, "encontro"), (id_pos, "pos"))
+                completar((id_pos, "pos"), (id_encontro, "encontro"))
+
+            # Lançamentos: (servo, pasta, momento) → coordenador; quem aparece nos dois papéis fica coordenador
+            lancamentos: dict[tuple[int, int, str], tuple[bool, list[PessoaImportada]]] = {}
+            for (id_pasta, momento), equipe in equipe_de.items():
+                for coordenador, pe in equipe:
+                    if pe.id_servo is None:
+                        continue
+                    chave = (pe.id_servo, id_pasta, momento)
+                    coord_antes, pessoas = lancamentos.get(chave, (False, []))
+                    lancamentos[chave] = (coord_antes or coordenador, pessoas + [pe])
 
             # Grava de verdade dentro da transação, para o banco conferir as regras
             # (repetição de pasta, Encontro/Pós); na prévia, tudo é desfeito no fim.
