@@ -171,11 +171,9 @@ const Home: React.FC = () => {
           texto="Perfil"
           onPress={() => router.push(usuario ? '/conta' : '/login')}
         />
+        <Atalho icone="people-outline" texto="Quadrante" onPress={() => router.push('/quadrante')} />
         {cuidaDosServos && (
           <Atalho icone="checkmark-done-outline" texto="Frequência" onPress={() => router.push('/frequencia')} />
-        )}
-        {cuidaDosServos && (
-          <Atalho icone="people-outline" texto="Servos" onPress={() => router.push('/servo')} />
         )}
         {cuidaDosCursistas && (
           <Atalho icone="school-outline" texto="Cursistas" onPress={() => router.push('/cursistas')} />

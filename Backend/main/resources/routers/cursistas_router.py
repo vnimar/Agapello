@@ -12,6 +12,8 @@ from ..importacao.cursistas_xlsx import ler_planilha
 from ..importacao.pastas_xlsx import PlanilhaInvalida, normalizar
 from ..schemas.auth_schema import UsuarioLogado
 from ..schemas.frequencia_schema import MessageResponse
+from ..schemas.servo_schema import ServoDadosUpdate
+from .servos_router import CAMPOS_DADOS
 from ..schemas.cursista_schema import (
     ChamadaCursistaRequest,
     ChamadaCursistaResponse,
@@ -452,6 +454,36 @@ def importar_cursistas(
         ano=ano, message=message, gravado=gravar, novos=novos, atualizados=atualizados,
         cursistas=resultado, erros=erros, avisos=avisos,
     )
+
+
+@router.put("/{id_cursista}/dados", response_model=CursistaItem, dependencies=[Depends(exigir_admin)])
+def editar_dados(id_cursista: int, body: ServoDadosUpdate):
+    """Apelido, contato e responsável do cursista (pelo quadrante). Só os campos enviados."""
+    campos = [c for c in CAMPOS_DADOS if c in body.model_fields_set]
+    try:
+        with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            if campos:
+                cursor.execute(f"""
+                    UPDATE cursista SET {", ".join(f"{c} = %s" for c in campos)}
+                    WHERE id_cursista = %s
+                """, (*(getattr(body, c) for c in campos), id_cursista))
+            cursor.execute("""
+                SELECT c.id_cursista, c.nome, c.apelido, c.id_comunidade, co.nome AS comunidade, c.status,
+                       c.telefone, c.email, c.endereco, c.data_nascimento,
+                       fn_idade(c.data_nascimento) AS idade,
+                       c.responsavel_nome, c.responsavel_telefone
+                FROM cursista c
+                LEFT JOIN comunidade co ON co.id_comunidade = c.id_comunidade
+                WHERE c.id_cursista = %s
+            """, (id_cursista,))
+            cursista = cursor.fetchone()
+    except Exception as e:
+        logger.error(f"Erro ao editar dados do cursista {id_cursista}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    if not cursista:
+        raise HTTPException(status_code=404, detail="Cursista não encontrado.")
+    return cursista
 
 
 @router.get("/faltosos-encontro", response_model=list[FaltosoEncontro], dependencies=[Depends(exigir_admin)])

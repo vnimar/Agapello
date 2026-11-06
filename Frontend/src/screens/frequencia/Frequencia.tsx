@@ -28,6 +28,8 @@ import {
 } from "../../services/frequencia/frequencia";
 import Header from '../../../components/Header';
 import NomeComApelido, { nomeExibido, textoDeBusca } from '../../../components/NomeComApelido';
+import { chamadaStyles } from '../cursistas/ChamadaCursistas.styles';
+import ListaServos from '../servo/Servo';
 import { Cores } from "@/constants/theme";
 import { STATUS_CORES } from "@/constants/frequencia";
 
@@ -80,7 +82,7 @@ function dataPorExtenso(dateStr: string) {
 
 // Componente
 
-export default function FrequenciaScreen() {
+function ChamadaServos() {
   const [missoes, setMissoes] = useState<MissaoComFrequencia[]>([]);
   const [missaoSelecionada, setMissaoSelecionada] = useState<Missao | null>(null);
   const [servos, setServos] = useState<ServoNormalizado[]>([]);
@@ -373,12 +375,7 @@ export default function FrequenciaScreen() {
   // Render principal
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Cores.fundo} />
-
-      {/* Header */}
-      <Header title="Frequência" />
-
+    <View style={{ flex: 1 }}>
       {/* Card da missão (toque para trocar) */}
       <TouchableOpacity
         style={styles.missaoCard}
@@ -641,6 +638,26 @@ export default function FrequenciaScreen() {
         </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+    </View>
+  );
+}
+
+// Chamada (lançar presenças) | Lista (servos com a % do ano, inativar/reativar)
+export default function FrequenciaScreen() {
+  const [aba, setAba] = useState<"chamada" | "lista">("chamada");
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Cores.fundo} />
+      <Header title="Frequência" />
+      <View style={chamadaStyles.segmento}>
+        {([["chamada", "Chamada"], ["lista", "Lista"]] as const).map(([valor, texto]) => (
+          <TouchableOpacity key={valor} style={[chamadaStyles.segmentoBtn, aba === valor && chamadaStyles.segmentoAtivo]}
+                            onPress={() => setAba(valor)} activeOpacity={0.7}>
+            <Text style={[chamadaStyles.segmentoTexto, aba === valor && chamadaStyles.segmentoTextoAtivo]}>{texto}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {aba === "chamada" ? <ChamadaServos /> : <ListaServos />}
     </SafeAreaView>
   );
 }

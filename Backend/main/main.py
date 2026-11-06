@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
-from resources.routers import missao_router, servos_router, frequencia_router, auth_router, usuarios_router, pastas_router, cursistas_router, auditoria_router
+from resources.routers import missao_router, servos_router, frequencia_router, auth_router, usuarios_router, pastas_router, cursistas_router, auditoria_router, quadrante_router
 from resources.config.auth import verify_api_key
 from resources.config.auditoria import AuditoriaMiddleware
 
@@ -47,3 +47,4 @@ app.include_router(usuarios_router.router, dependencies=[Depends(verify_api_key)
 app.include_router(pastas_router.router, dependencies=[Depends(verify_api_key)])
 app.include_router(cursistas_router.router, dependencies=[Depends(verify_api_key)])
 app.include_router(auditoria_router.router, dependencies=[Depends(verify_api_key)])
+app.include_router(quadrante_router.router, dependencies=[Depends(verify_api_key)])

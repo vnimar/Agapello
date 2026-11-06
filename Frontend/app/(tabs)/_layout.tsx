@@ -50,11 +50,11 @@ export default function TabLayout() {
                     title: 'Início',
                     tabBarIcon: ({color}) => <IconSymbol size={28} name="house.fill" color={color}/>,
                 }}/>
+            {/* Aberto a todos os servos; a lista com frequência fica na aba Frequência */}
             <Tabs.Screen
-                name="servo"
+                name="quadrante"
                 options={{
-                    ...soCoordServos,
-                    title: 'Servo',
+                    title: 'Quadrante',
                     tabBarIcon: ({color}) => (
                         <IconSymbol size={28} name="person.2.fill" color={color}/>
                     ),

@@ -21,7 +21,8 @@ COLUNAS_DETALHE = """id_servo, nome, telefone, status, ano_ingresso,
                      email, endereco, data_nascimento, fn_idade(data_nascimento),
                      apelido, responsavel_nome, responsavel_telefone"""
 
-# Campos que o PUT /dados grava (os de contato + apelido e responsável)
+# Campos que o PUT /dados grava (os de contato + apelido e responsável);
+# o PUT /cursistas/{id}/dados usa os mesmos
 CAMPOS_DADOS = ("telefone", "email", "endereco", "data_nascimento",
                 "apelido", "responsavel_nome", "responsavel_telefone")
 

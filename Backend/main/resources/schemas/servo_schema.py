@@ -36,6 +36,7 @@ class ServoDadosUpdate(BaseModel):
     """
     Dados de contato, apelido e responsável: o próprio servo ou admin/coord. geral.
     Vazio apaga o campo; campo que não vier no corpo fica como está.
+    Também serve para os dados do cursista (PUT /cursistas/{id}/dados).
     """
     telefone: Optional[str] = None
     email: Optional[str] = None

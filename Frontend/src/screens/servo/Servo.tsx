@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -15,12 +14,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./Servo.style";
 import { getServos, passouDoPrazo, putStatusServo } from "../../services/servos/servos";
-import DadosServoModal, { ServoComDados } from "./DadosServoModal";
 import {
   getFrequenciaServos,
   FrequenciaServoResumo,
 } from "../../services/frequencia/frequencia";
-import Header from "../../../components/Header";
 import NomeComApelido, { nomeExibido, textoDeBusca } from "../../../components/NomeComApelido";
 import { Cores } from "@/constants/theme";
 import { FREQ_MINIMA, FREQ_REGULAR, STATUS_CORES, corDaFrequencia } from "@/constants/frequencia";
@@ -32,13 +29,6 @@ interface Servo {
   id: number;
   nome: string;
   apelido: string | null;
-  responsavel_nome: string | null;
-  responsavel_telefone: string | null;
-  telefone: string | null;
-  email: string | null;
-  endereco: string | null;
-  data_nascimento: string | null;
-  idade: number | null;
   status: string | null;
   ano_ingresso: number | null;
   data_saida: string | null; // só de quem está inativo
@@ -60,12 +50,10 @@ function ServoDetalhes({
   servo,
   resumo,
   onAlterarStatus,
-  onEditarDados,
 }: {
   servo: Servo;
   resumo: FrequenciaServoResumo | null;
   onAlterarStatus?: () => void; // só para quem pode inativar/reativar
-  onEditarDados?: () => void; // só admin e coord. geral
 }) {
   const percentual = resumo?.percentual_presenca ?? null;
   const cor = corDaFrequencia(percentual);
@@ -121,14 +109,7 @@ function ServoDetalhes({
 
       {/* Dados do servo */}
       <View style={styles.dadosBox}>
-        {/* Email, endereço e nascimento ficam para o quadrante */}
-        {servo.telefone ? (
-          <View style={styles.dadosRow}>
-            <Text style={styles.dadosKey}>Telefone</Text>
-            <Text style={styles.dadosValue}>{servo.telefone}</Text>
-          </View>
-        ) : null}
-
+        {/* Contato e demais dados ficam no quadrante */}
         <View style={styles.dadosRow}>
           <Text style={styles.dadosKey}>Ano de ingresso</Text>
           <Text style={styles.dadosValue}>
@@ -155,13 +136,6 @@ function ServoDetalhes({
         </View>
       </View>
 
-      {onEditarDados && (
-        <TouchableOpacity style={styles.btnReativar} onPress={onEditarDados} activeOpacity={0.7}>
-          <Ionicons name="create-outline" size={16} color={Cores.primaria} />
-          <Text style={styles.btnReativarText}>Editar dados</Text>
-        </TouchableOpacity>
-      )}
-
       {onAlterarStatus && (
         servo.status === "Inativo" ? (
           <TouchableOpacity style={styles.btnReativar} onPress={onAlterarStatus} activeOpacity={0.7}>
@@ -181,7 +155,8 @@ function ServoDetalhes({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function ServosScreen() {
+// Lista de servos com a % do ano: é a "Lista" da aba Frequência
+export default function ListaServos() {
   const [servos, setServos] = useState<Servo[]>([]);
   const [frequencias, setFrequencias] = useState<
     Record<number, FrequenciaServoResumo>
@@ -196,7 +171,6 @@ export default function ServosScreen() {
   const [salvandoStatus, setSalvandoStatus] = useState(false);
 
   // Edição dos dados de contato (admin e coord. geral)
-  const [servoEditar, setServoEditar] = useState<Servo | null>(null);
 
   // Novos estados para busca e filtros
   const [searchText, setSearchText] = useState("");
@@ -414,7 +388,6 @@ export default function ServosScreen() {
                 servo={item}
                 resumo={resumo}
                 onAlterarStatus={isAdmin ? () => alterarStatus(item) : undefined}
-                onEditarDados={isAdmin ? () => setServoEditar(item) : undefined}
               />
             </View>
           )}
@@ -500,8 +473,7 @@ export default function ServosScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <Header title="Servos" />
+    <View style={{ flex: 1 }}>
 
       {/* Barra de busca e filtro */}
       <View style={styles.searchArea}>
@@ -711,15 +683,6 @@ export default function ServosScreen() {
         </View>
       </Modal>
 
-      <DadosServoModal
-        servo={servoEditar}
-        titulo="Editar dados"
-        onFechar={() => setServoEditar(null)}
-        onSalvo={(atualizado: ServoComDados) => {
-          setServos((prev) => prev.map((s) => (s.id === atualizado.id ? { ...s, ...atualizado } : s)));
-          setServoEditar(null);
-        }}
-      />
 
       {/* Modal de inativação (motivo opcional) */}
       <Modal
@@ -791,6 +754,6 @@ export default function ServosScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

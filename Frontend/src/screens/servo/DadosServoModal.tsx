@@ -14,9 +14,9 @@ import { Cores } from "@/constants/theme";
 import { DadosServo, putDadosServo } from "../../services/servos/servos";
 import { authStyles as styles } from "../login/Login.styles";
 
-// Dados de contato, apelido e responsável do servo. Usado em Minha conta (o
-// próprio servo) e em Servos (admin e coord. geral editam qualquer um).
-// Quando o quadrante existir, a edição de admin/coord. geral vai para lá.
+// Dados de contato, apelido e responsável. Usado em Minha conta (o próprio
+// servo) e no Quadrante (o próprio servo; admin e coord. geral editam qualquer
+// servo ou cursista — para cursista, passe `gravar`).
 
 export type ServoComDados = DadosServo & { id: number; nome: string; idade?: number | null };
 
@@ -52,11 +52,13 @@ export default function DadosServoModal({
   titulo,
   onFechar,
   onSalvo,
+  gravar = putDadosServo,
 }: {
   servo: ServoComDados | null; // null = fechado
   titulo: string;
   onFechar: () => void;
   onSalvo: (atualizado: ServoComDados) => void;
+  gravar?: (id: number, dados: DadosServo) => Promise<unknown>;
 }) {
   const [apelido, setApelido] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -91,7 +93,7 @@ export default function DadosServoModal({
 
     setSalvando(true);
     try {
-      const atualizado = await putDadosServo(servo.id, {
+      const atualizado = await gravar(servo.id, {
         telefone: telefone.trim() || null,
         email: emailLimpo || null,
         endereco: endereco.trim() || null,
