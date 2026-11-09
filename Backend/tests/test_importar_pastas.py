@@ -83,6 +83,12 @@ def preservar_ano_importado():
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM servo_pasta WHERE ano = %s", (ANO,))
+            # Servos Aguardando criados pela importação (cursistas com pasta)
+            cursor.execute("SELECT id_servo FROM servo WHERE status = 'Aguardando'")
+            aguardando = [i for (i,) in cursor.fetchall()]
+            cursor.execute("UPDATE cursista SET id_servo = NULL WHERE id_servo = ANY(%s)", (aguardando,))
+            cursor.execute("DELETE FROM servo_pasta WHERE id_servo = ANY(%s)", (aguardando,))
+            cursor.execute("DELETE FROM servo WHERE id_servo = ANY(%s)", (aguardando,))
             for linha in antes:
                 cursor.execute("INSERT INTO servo_pasta (id_servo, id_pasta, momento, coordenador, ano) "
                                "VALUES (%s, %s, %s, %s, %s)", (*linha, ANO))
@@ -290,3 +296,124 @@ def test_so_admin_e_coordenacao_geral(client, headers):
     assert enviar(client, headers("servo"), conteudo).status_code == 403
     assert enviar(client, headers(None), conteudo).status_code == 401
     assert enviar(client, headers("geral.manual"), conteudo).status_code == 200
+
+
+# ── Promoção de cursista a servo (virada do ano) ──────────────────────────────
+
+# O seed tem "Teste Cursista Kairós 1..3" (e Maranata, Kenosis) no ano atual
+CURSISTA = "Teste Cursista Kairós 1"
+PLANILHA_COM_CURSISTAS = [
+    {"funcao": "Música", "e": 1, "p": 1, "ec": ["Teste Servo 1"], "em": ["Kaká"],
+     "pc": ["Teste Servo 1"], "pm": ["Kaká", "Teste Cursista Kairós 2"]},
+]
+
+
+@pytest.fixture
+def apelido_do_cursista():
+    """Dá o apelido "Kaká" ao CURSISTA, que a planilha usa no lugar do nome."""
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("UPDATE cursista SET apelido = 'Kaká', telefone = '61 99999-0000' WHERE nome = %s", (CURSISTA,))
+    yield
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("UPDATE cursista SET apelido = NULL, telefone = NULL WHERE nome = %s", (CURSISTA,))
+
+
+def aguardando():
+    """{nome: (ano_ingresso, telefone, apelido)} dos servos Aguardando e o cursista ligado a cada um."""
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT s.nome, s.ano_ingresso, s.telefone, s.apelido, c.status
+            FROM servo s JOIN cursista c ON c.id_servo = s.id_servo
+            WHERE s.status = 'Aguardando'
+        """)
+        return {n: tuple(resto) for n, *resto in cursor.fetchall()}
+
+
+def test_previa_mostra_quem_vira_servo_e_nao_grava(client, admin, apelido_do_cursista):
+    corpo = enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS)).json()
+    assert not corpo["erros"], corpo["erros"]
+    # Achado pelo apelido e pelo nome
+    assert set(corpo["promovidos"]) == {f"{CURSISTA} (Kaká)", "Teste Cursista Kairós 2"}
+    assert "Teste Cursista Kairós 3" in corpo["cursistas_sem_pasta"]
+    assert "Teste Servo 3" in corpo["servos_sem_pasta"]
+    assert aguardando() == {}
+
+
+def test_confirmar_cria_servo_aguardando_escondido(client, admin, headers, apelido_do_cursista):
+    corpo = enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS), confirmar=True).json()
+    assert corpo["gravados"] > 0, corpo
+
+    # Leva os dados e o ano de ingresso é o do cursista; segue cursista até a virada
+    assert aguardando()[CURSISTA] == (ANO - 1, "61 99999-0000", "Kaká", "ativo")
+    assert (CURSISTA, "Música", "pos", False) in lancamentos()
+
+    nomes = [s["nome"] for s in client.get("/servos/", headers=admin).json()]
+    assert CURSISTA not in nomes
+    resumo = client.get("/frequencia/servos", headers=headers("formacao")).json()["data"]
+    assert CURSISTA not in [r["nome"] for r in resumo]
+
+
+def test_reimportar_sem_o_cursista_desfaz_o_aguardando(client, admin, apelido_do_cursista):
+    enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS), confirmar=True)
+    primeiro = aguardando()
+    enviar(client, admin, planilha([
+        {"funcao": "Música", "e": 1, "p": 1, "pc": ["Teste Servo 1"], "pm": ["Teste Cursista Kairós 2"]},
+    ]), confirmar=True)
+    assert set(aguardando()) == {"Teste Cursista Kairós 2"}
+    assert primeiro["Teste Cursista Kairós 2"] == aguardando()["Teste Cursista Kairós 2"]
+
+
+def test_nome_de_duas_pessoas_e_erro(client, admin):
+    # "Teste Servo 1" vira também o apelido de um cursista
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("UPDATE cursista SET apelido = 'Teste Servo 1' WHERE nome = %s", (CURSISTA,))
+    try:
+        corpo = enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS), confirmar=True).json()
+    finally:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("UPDATE cursista SET apelido = NULL WHERE nome = %s", (CURSISTA,))
+    assert any("pode ser" in e for e in corpo["erros"]), corpo["erros"]
+    assert corpo["gravados"] == 0
+
+
+def test_virada_promove_conclui_e_inativa(client, admin, apelido_do_cursista):
+    from resources.bd.db import getConnection, releaseConnection
+    from resources.virada import aplicar_virada
+
+    enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS), confirmar=True)
+    conn = getConnection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM virada_ano WHERE ano = %s", (ANO,))
+            assert aplicar_virada(cursor, ANO)
+            assert not aplicar_virada(cursor, ANO)  # uma vez por ano, a não ser à força
+
+            cursor.execute("SELECT s.status, c.status FROM servo s JOIN cursista c USING (id_servo) "
+                           "WHERE c.nome = %s", (CURSISTA,))
+            assert cursor.fetchone() == ("Ativo", "promovido")
+            cursor.execute("SELECT status, id_servo FROM cursista WHERE nome = 'Teste Cursista Kairós 3'")
+            assert cursor.fetchone() == ("concluido", None)
+            cursor.execute("""
+                SELECT s.status, a.motivo FROM servo s
+                JOIN servo_afastamento a ON a.id_servo = s.id_servo AND a.data_retorno IS NULL
+                WHERE s.nome = 'Teste Servo 3'
+            """)
+            assert cursor.fetchone() == ("Inativo", f"Sem pasta em {ANO}")
+    finally:
+        conn.rollback()  # nada da virada fica no banco de teste
+        releaseConnection(conn)
+
+
+def test_virada_sem_pastas_do_ano_nao_faz_nada():
+    from resources.bd.db import getConnection, releaseConnection
+    from resources.virada import aplicar_virada
+
+    conn = getConnection()
+    try:
+        with conn.cursor() as cursor:
+            assert not aplicar_virada(cursor, ANO + 5)
+            cursor.execute("SELECT 1 FROM virada_ano WHERE ano = %s", (ANO + 5,))
+            assert cursor.fetchone() is None
+    finally:
+        conn.rollback()
+        releaseConnection(conn)

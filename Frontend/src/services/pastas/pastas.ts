@@ -8,6 +8,7 @@ export type Momento = "encontro" | "pos";
 export interface PessoaImportada {
   nome_planilha: string;
   id_servo: number | null;
+  id_cursista?: number | null; // cursista do ano anterior: vira servo na virada
   servo: string | null;     // nome no sistema
   conferir: boolean;        // achado por aproximação
   erro: string | null;      // recusado (ex.: repetição de pasta)
@@ -38,6 +39,10 @@ export interface ImportacaoPastas {
   pastas: PastaImportada[];
   erros: string[];
   avisos: string[];
+  // O que a virada do ano faz (1º de janeiro, ou na hora se o ano já começou)
+  promovidos: string[];          // cursistas que viram servos
+  cursistas_sem_pasta: string[]; // deixam o movimento
+  servos_sem_pasta: string[];    // ficam inativos
 }
 
 export interface ArquivoEscolhido {

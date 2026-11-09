@@ -111,6 +111,7 @@ def get_frequencia_by_servo():
                                      AND m.data <= CURRENT_DATE
                                      AND EXTRACT(YEAR FROM m.data) = %s
                     ) ON f.id_servo = s.id_servo
+                    WHERE s.status <> 'Aguardando'
                     GROUP BY s.id_servo, s.nome
                     ORDER BY s.nome
                 """, (ano,))

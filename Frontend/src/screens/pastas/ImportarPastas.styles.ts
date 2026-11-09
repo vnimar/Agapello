@@ -6,6 +6,7 @@ const TEXTO = Cores.texto;
 const CINZA = Cores.textoSuave;
 const ERRO = STATUS_CORES.Falta;
 const AVISO = STATUS_CORES.Justificada;
+const NOVO = STATUS_CORES.Presente;
 
 const sombra = {
   shadowColor: Cores.sombra,
@@ -128,6 +129,24 @@ export const styles = StyleSheet.create({
   },
   caixaAviso: {
     backgroundColor: AVISO.fundo,
+  },
+  caixaNovo: {
+    backgroundColor: NOVO.fundo,
+  },
+  novoText: {
+    color: NOVO.texto,
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  caixaNeutra: {
+    backgroundColor: Cores.card,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  neutroText: {
+    color: TEXTO,
+    fontSize: 13,
+    marginBottom: 4,
   },
   caixaTitulo: {
     fontSize: 14,

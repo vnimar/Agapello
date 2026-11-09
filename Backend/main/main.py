@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from resources.routers import missao_router, servos_router, frequencia_router, auth_router, usuarios_router, pastas_router, cursistas_router, auditoria_router, quadrante_router
 from resources.config.auth import verify_api_key
 from resources.config.auditoria import AuditoriaMiddleware
+from resources.virada import ViradaMiddleware
 
 app = FastAPI(
     title="AgapeSys Api",
@@ -27,6 +28,9 @@ app.add_middleware(
 
 # Log de quem alterou o quê (POST/PUT/PATCH/DELETE) — ver resources/config/auditoria.py
 app.add_middleware(AuditoriaMiddleware)
+
+# Pastas importadas em dezembro passam a valer em 1º de janeiro — ver resources/virada.py
+app.add_middleware(ViradaMiddleware)
 
 BASE_DIR = Path(__file__).resolve().parent
 

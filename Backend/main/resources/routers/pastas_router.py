@@ -1,7 +1,7 @@
 import difflib
 import logging
 from datetime import date
-from typing import Optional
+from typing import Hashable, Optional
 
 import psycopg2
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -10,6 +10,8 @@ from ..bd.db import getConnection, releaseConnection
 from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, require_perfil
 from ..importacao.pastas_xlsx import MOMENTOS, PlanilhaInvalida, ler_planilha, normalizar
+from ..schemas.auth_schema import UsuarioLogado
+from ..virada import aplicar_virada
 from ..schemas.pasta_schema import (
     EquipeImportada,
     PastaImportada,
@@ -30,9 +32,10 @@ TAMANHO_MAXIMO = 5 * 1024 * 1024
 NOME_MOMENTO = {"encontro": "Encontro", "pos": "Pós-Encontro"}
 
 
-def achar(texto: str, candidatos: list[tuple[int, str]]) -> tuple[Optional[int], bool]:
+def achar(texto: str, candidatos: list[tuple[Hashable, str]]) -> tuple[Optional[Hashable], bool]:
     """
-    Procura o texto da planilha entre (id, nome) do sistema.
+    Procura o texto da planilha entre (id, nome) do sistema. O mesmo id pode vir
+    mais de uma vez (nome completo e apelido).
     Devolve (id, conferir): conferir=True quando foi por aproximação
     (palavras a menos/a mais, acento, letra trocada). Sem certeza → (None, False).
     """
@@ -40,28 +43,34 @@ def achar(texto: str, candidatos: list[tuple[int, str]]) -> tuple[Optional[int],
     if not alvo:
         return None, False
 
-    exatos = [i for i, nome in candidatos if normalizar(nome) == alvo]
+    exatos = {i for i, nome in candidatos if normalizar(nome) == alvo}
     if len(exatos) == 1:
-        return exatos[0], False
+        return exatos.pop(), False
     if len(exatos) > 1:
         return None, False
 
     # Nome incompleto ou com palavras a mais ("Agnus" → "Agnus Dei")
     palavras = set(alvo.split())
     if len(palavras) >= 2:
-        contidos = [i for i, nome in candidatos
-                    if palavras <= set(normalizar(nome).split()) or set(normalizar(nome).split()) <= palavras]
+        contidos = {i for i, nome in candidatos
+                    if palavras <= set(normalizar(nome).split()) or set(normalizar(nome).split()) <= palavras}
         if len(contidos) == 1:
-            return contidos[0], True
+            return contidos.pop(), True
         if len(contidos) > 1:
             return None, False
 
-    # Letra trocada ("Kenossis" → "Kenosis")
-    notas = sorted(((difflib.SequenceMatcher(None, alvo, normalizar(nome)).ratio(), i)
-                    for i, nome in candidatos), reverse=True)
+    # Letra trocada ("Kenossis" → "Kenosis"): vale a melhor nota de cada id
+    melhor: dict[Hashable, float] = {}
+    for i, nome in candidatos:
+        melhor[i] = max(melhor.get(i, 0.0), difflib.SequenceMatcher(None, alvo, normalizar(nome)).ratio())
+    notas = sorted(((nota, i) for i, nota in melhor.items()), key=lambda n: n[0], reverse=True)
     if notas and notas[0][0] >= 0.88 and (len(notas) == 1 or notas[1][0] < notas[0][0] - 0.03):
         return notas[0][1], True
     return None, False
+
+
+def com_apelido(nome: str, apelido: Optional[str]) -> str:
+    return f"{nome} ({apelido})" if apelido else nome
 
 
 @router.post("/importar", response_model=PastaImportResponse)
@@ -70,6 +79,7 @@ def importar_pastas(
     arquivo: UploadFile = File(...),
     ano: int = Form(...),
     confirmar: bool = Form(False),
+    usuario: Optional[UsuarioLogado] = Depends(require_perfil(*PERFIS_ADMIN)),
 ):
     """
     Importa a distribuição de pastas de um ano a partir da planilha (.xlsx).
@@ -99,29 +109,62 @@ def importar_pastas(
             momento_pasta = {i: m for i, _, m, _ in linhas_pasta}
             # Pastas irmãs: a mesma equipe com outro nome no Pós (id_pasta_principal, migration 009)
             irmas = [(principal, i) for i, _, _, principal in linhas_pasta if principal]
-            # Excluído não recebe pasta: se voltou, entra como cursista novo
-            cursor.execute("SELECT id_servo, nome, status FROM servo WHERE status <> 'Excluido'")
+            # Excluído não recebe pasta: se voltou, entra como cursista novo.
+            # Aguardando é cursista que já recebeu pasta: entra pelo lado do cursista.
+            cursor.execute("""
+                SELECT id_servo, nome, apelido, status FROM servo
+                WHERE status NOT IN ('Excluido', 'Aguardando')
+            """)
             servos = cursor.fetchall()
-            nome_servo = {i: n for i, n, _ in servos}
-            status_servo = {i: s for i, _, s in servos}
-            todos = [(i, n) for i, n, _ in servos]
-            ativos = [(i, n) for i, n, s in servos if s == "Ativo"]
+            nome_servo = {i: com_apelido(n, a) for i, n, a, _ in servos}
+            status_servo = {i: s for i, _, _, s in servos}
+
+            # Quem foi cursista no ano anterior recebe a primeira pasta e vira servo
+            # na virada; "concluido" só aparece se a importação é refeita em janeiro
+            cursor.execute("""
+                SELECT id_cursista, nome, apelido, id_servo FROM cursista
+                WHERE ano = %s AND status IN ('ativo', 'concluido')
+            """, (ano - 1,))
+            cursistas = cursor.fetchall()
+            nome_cursista = {i: com_apelido(n, a) for i, n, a, _ in cursistas}
+            aguardando = {i: s for i, _, _, s in cursistas if s}
+
+            # Candidatos pelo nome e pelo apelido: ("s", id_servo) ou ("c", id_cursista)
+            def candidatos(linhas, tipo):
+                return [((tipo, i), texto) for i, n, a, *_ in linhas for texto in (n, a) if texto]
+            ativos = candidatos([s for s in servos if s[3] == "Ativo"], "s") + candidatos(cursistas, "c")
+            todos = ativos + candidatos([s for s in servos if s[3] != "Ativo"], "s")
+            nome_de = {("s", i): n for i, n in nome_servo.items()} | {("c", i): n for i, n in nome_cursista.items()}
+
+            cursor.execute("SELECT count(*) FROM servo_pasta WHERE ano = %s", (ano,))
+            substituidos = cursor.fetchone()[0]
 
             erros: list[str] = []
             avisos: list[str] = []
 
             def pessoa(nome: str, funcao: str) -> PessoaImportada:
-                # Prefere os servos ativos; só olha os inativos se não achar
-                id_servo, conferir = achar(nome, ativos)
-                if id_servo is None:
-                    id_servo, conferir = achar(nome, todos)
-                if id_servo is None:
-                    avisos.append(f'{funcao}: "{nome}" não foi encontrado entre os servos (ignorado).')
+                # Prefere os servos ativos e os cursistas; só olha os inativos se não achar
+                chave, conferir = achar(nome, ativos)
+                if chave is None:
+                    chave, conferir = achar(nome, todos)
+                if chave is None:
+                    iguais = sorted({nome_de[i] for i, texto in todos if normalizar(texto) == normalizar(nome)})
+                    if len(iguais) > 1:
+                        # Não chuta: um cursista deixado de fora aqui sairia do movimento
+                        erros.append(f'{funcao}: "{nome}" pode ser {" ou ".join(iguais)}. '
+                                     f'Escreva o nome completo na planilha.')
+                        return PessoaImportada(nome_planilha=nome, erro="Nome de mais de uma pessoa.")
+                    avisos.append(f'{funcao}: "{nome}" não foi encontrado entre os servos e cursistas (ignorado).')
                     return PessoaImportada(nome_planilha=nome)
-                if status_servo[id_servo] != "Ativo":
-                    avisos.append(f'{funcao}: {nome_servo[id_servo]} está {status_servo[id_servo]}.')
-                return PessoaImportada(nome_planilha=nome, id_servo=id_servo,
-                                       servo=nome_servo[id_servo], conferir=conferir)
+                tipo, id_ = chave
+                if tipo == "c":
+                    # O id_servo vem depois, quando o servo Aguardando existir
+                    return PessoaImportada(nome_planilha=nome, id_cursista=id_,
+                                           servo=nome_cursista[id_], conferir=conferir)
+                if status_servo[id_] != "Ativo":
+                    avisos.append(f'{funcao}: {nome_servo[id_]} está {status_servo[id_]}.')
+                return PessoaImportada(nome_planilha=nome, id_servo=id_,
+                                       servo=nome_servo[id_], conferir=conferir)
 
             resultado: list[PastaImportada] = []
             na_planilha: set[int] = set()
@@ -154,6 +197,42 @@ def importar_pastas(
                     funcao_planilha=lida.funcao, linha=lida.linha, id_pasta=id_pasta,
                     pasta=nome_pasta.get(id_pasta), conferir=conferir, equipes=equipes,
                 ))
+
+            # Cursista com pasta ganha (ou mantém, se a planilha é reimportada) um
+            # servo Aguardando, que guarda as pastas até a virada do ano
+            cursor.execute("DELETE FROM servo_pasta WHERE ano = %s", (ano,))
+            achados = {pe.id_cursista for p in resultado if p.id_pasta for e in p.equipes
+                       for pe in e.coordenadores + e.membros if pe.id_cursista}
+            servo_do_cursista: dict[int, int] = {}
+            for id_cursista in sorted(achados):
+                if id_cursista in aguardando:
+                    servo_do_cursista[id_cursista] = aguardando[id_cursista]
+                    continue
+                # Leva os dados; o ano de ingresso é o ano em que foi cursista
+                cursor.execute("""
+                    INSERT INTO servo (nome, apelido, telefone, email, endereco, data_nascimento,
+                                       responsavel_nome, responsavel_telefone, status, ano_ingresso)
+                    SELECT nome, apelido, telefone, email, endereco, data_nascimento,
+                           responsavel_nome, responsavel_telefone, 'Aguardando', ano
+                    FROM cursista WHERE id_cursista = %s
+                    RETURNING id_servo
+                """, (id_cursista,))
+                servo_do_cursista[id_cursista] = cursor.fetchone()[0]
+                cursor.execute("UPDATE cursista SET id_servo = %s WHERE id_cursista = %s",
+                               (servo_do_cursista[id_cursista], id_cursista))
+
+            # Reimportação: quem perdeu a pasta deixa de ter o servo Aguardando
+            desfeitos = [s for c, s in aguardando.items() if c not in achados]
+            cursor.execute("UPDATE cursista SET id_servo = NULL WHERE id_servo = ANY(%s)", (desfeitos,))
+            cursor.execute("DELETE FROM servo_pasta WHERE id_servo = ANY(%s)", (desfeitos,))
+            cursor.execute("DELETE FROM servo WHERE id_servo = ANY(%s) AND status = 'Aguardando'", (desfeitos,))
+
+            for p in resultado:
+                for e in p.equipes:
+                    for pe in e.coordenadores + e.membros:
+                        if pe.id_cursista:
+                            pe.id_servo = servo_do_cursista[pe.id_cursista]
+            nome_servo |= {servo_do_cursista[c]: nome_cursista[c] for c in achados}
 
             # Equipe de cada (pasta, momento): [(coordenador, pessoa)]
             equipe_de: dict[tuple[int, str], list[tuple[bool, PessoaImportada]]] = {}
@@ -199,9 +278,7 @@ def importar_pastas(
 
             # Grava de verdade dentro da transação, para o banco conferir as regras
             # (repetição de pasta, Encontro/Pós); na prévia, tudo é desfeito no fim.
-            cursor.execute("SELECT count(*) FROM servo_pasta WHERE ano = %s", (ano,))
-            substituidos = cursor.fetchone()[0]
-            cursor.execute("DELETE FROM servo_pasta WHERE ano = %s", (ano,))
+            # Os lançamentos antigos do ano já foram apagados lá em cima.
 
             for (id_servo, id_pasta, momento), (coordenador, pessoas) in lancamentos.items():
                 cursor.execute("SAVEPOINT lancamento")
@@ -219,13 +296,22 @@ def importar_pastas(
                     erros.append(f"{nome_servo[id_servo]} — {nome_pasta[id_pasta]} ({NOME_MOMENTO[momento]}): "
                                  f"{motivo}")
 
-            cursor.execute("""
-                SELECT nome FROM servo
-                WHERE status = 'Ativo'
-                  AND id_servo NOT IN (SELECT id_servo FROM servo_pasta WHERE ano = %s AND momento = 'pos')
-                ORDER BY nome
+            # O que a virada do ano vai fazer (ver resources/virada.py)
+            tem_pos = "EXISTS (SELECT 1 FROM servo_pasta sp WHERE sp.id_servo = s.id_servo AND sp.ano = %s AND sp.momento = 'pos')"
+            cursor.execute(f"""
+                SELECT s.nome, s.apelido FROM servo s WHERE s.status = 'Ativo' AND NOT {tem_pos}
+                ORDER BY COALESCE(s.apelido, s.nome), s.nome
             """, (ano,))
-            avisos += [f"{n} está Ativo e ficou sem pasta no Pós-Encontro." for (n,) in cursor.fetchall()]
+            servos_sem_pasta = [com_apelido(n, a) for n, a in cursor.fetchall()]
+            cursor.execute(f"""
+                SELECT c.nome, c.apelido, COALESCE(s.status = 'Aguardando' AND {tem_pos}, false)
+                FROM cursista c LEFT JOIN servo s ON s.id_servo = c.id_servo
+                WHERE c.ano = %s AND c.status IN ('ativo', 'concluido')
+                ORDER BY COALESCE(c.apelido, c.nome), c.nome
+            """, (ano, ano - 1))
+            cursistas_do_ano = cursor.fetchall()
+            promovidos = [com_apelido(n, a) for n, a, vira in cursistas_do_ano if vira]
+            cursistas_sem_pasta = [com_apelido(n, a) for n, a, vira in cursistas_do_ano if not vira]
 
             cursor.execute("""
                 SELECT nome FROM pasta
@@ -241,6 +327,9 @@ def importar_pastas(
             gravar = confirmar and not erros
             if gravar:
                 cursor.execute("DELETE FROM servo_pasta WHERE ano < %s", (ano - ANOS_GUARDADOS,))
+                # Pastas do ano em curso valem na hora: a virada roda de novo
+                if ano <= ano_atual:
+                    aplicar_virada(cursor, ano, forcar=True, registrado_por=getattr(usuario, "id", None))
 
         if gravar:
             conn.commit()
@@ -273,4 +362,5 @@ def importar_pastas(
     return PastaImportResponse(
         ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos, antigos=antigos,
         pastas=resultado, erros=erros, avisos=avisos,
+        promovidos=promovidos, cursistas_sem_pasta=cursistas_sem_pasta, servos_sem_pasta=servos_sem_pasta,
     )

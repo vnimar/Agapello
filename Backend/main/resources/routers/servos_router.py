@@ -80,7 +80,9 @@ def listar_servos():
                         LEFT JOIN pasta p ON p.id_pasta = sp.id_pasta
                         LEFT JOIN servo_afastamento a ON a.id_servo = s.id_servo AND a.data_retorno IS NULL
                -- Excluídos vêm junto (status 'Excluido') para as chamadas antigas
-               -- continuarem com o nome; as telas tiram eles das listas
+               -- continuarem com o nome; as telas tiram eles das listas.
+               -- Aguardando (cursista com pasta do ano que vem) só aparece na virada.
+               WHERE s.status <> 'Aguardando'
                GROUP BY s.id_servo, a.data_saida
                -- Na tela vale o apelido (é como se conhecem)
                ORDER BY COALESCE(s.apelido, s.nome), s.nome

@@ -31,8 +31,8 @@ function Pessoa({ p, coordenador }: { p: PessoaImportada; coordenador: boolean }
   const prefixo = coordenador ? "★ " : "• ";
   if (!p.id_servo) {
     return (
-      <Text style={[styles.pessoa, styles.pessoaFora]}>
-        {prefixo}{p.nome_planilha} <Text style={styles.detalhe}>(não encontrado)</Text>
+      <Text style={[styles.pessoa, p.erro ? styles.pessoaErro : styles.pessoaFora]}>
+        {prefixo}{p.nome_planilha} <Text style={styles.detalhe}>({p.erro ?? "não encontrado"})</Text>
       </Text>
     );
   }
@@ -40,6 +40,7 @@ function Pessoa({ p, coordenador }: { p: PessoaImportada; coordenador: boolean }
     <View>
       <Text style={[styles.pessoa, p.erro ? styles.pessoaErro : null]}>
         {prefixo}{p.servo}
+        {!!p.id_cursista && <Text style={styles.detalhe}>  cursista</Text>}
         {p.conferir && <Text style={styles.conferir}>  confira: “{p.nome_planilha}”</Text>}
       </Text>
       {p.erro && <Text style={styles.detalheErro}>   {p.erro}</Text>}
@@ -56,6 +57,17 @@ function Equipe({ e }: { e: EquipeImportada }) {
       {e.ignorados.length > 0 && (
         <Text style={styles.detalhe}>Fora do sistema: {e.ignorados.join(", ")}</Text>
       )}
+    </View>
+  );
+}
+
+// Lista do que a virada do ano vai fazer (some quando está vazia)
+function Lista({ titulo, nomes, caixa, texto }: { titulo: string; nomes?: string[]; caixa: object; texto: object }) {
+  if (!nomes?.length) return null;
+  return (
+    <View style={[styles.caixa, caixa]}>
+      <Text style={[styles.caixaTitulo, texto]}>{titulo} ({nomes.length})</Text>
+      {nomes.map((n, i) => <Text key={i} style={texto}>• {n}</Text>)}
     </View>
   );
 }
@@ -118,7 +130,14 @@ export default function ImportarPastasScreen() {
     const antigos = previa.antigos
       ? `\n\nOs ${previa.antigos} lançamento(s) de antes de ${ano - 2} serão apagados (só ficam ${ano - 2} a ${ano}).`
       : "";
-    const quando = ano > anoAtual ? `\n\nAs pastas de ${ano} passam a valer em 1º de janeiro.` : "";
+    const virada = ano > anoAtual ? "em 1º de janeiro" : "agora";
+    const mudancas = [
+      previa.promovidos?.length && `${previa.promovidos.length} cursista(s) viram servos`,
+      previa.cursistas_sem_pasta?.length && `${previa.cursistas_sem_pasta.length} cursista(s) sem pasta deixam o movimento`,
+      previa.servos_sem_pasta?.length && `${previa.servos_sem_pasta.length} servo(s) sem pasta ficam inativos`,
+    ].filter(Boolean);
+    const quando = (ano > anoAtual ? `\n\nAs pastas de ${ano} passam a valer em 1º de janeiro.` : "") +
+      (mudancas.length ? `\n\nNa virada (${virada}): ${mudancas.join("; ")}.` : "");
     Alert.alert("Gravar as pastas?", `${previa.message}${substitui}${antigos}${quando}`, [
       { text: "Cancelar", style: "cancel" },
       {
@@ -202,6 +221,13 @@ export default function ImportarPastasScreen() {
                 {previa.avisos.map((a, i) => <Text key={i} style={styles.avisoText}>• {a}</Text>)}
               </View>
             )}
+
+            <Lista titulo={`Viram servos ${ano > anoAtual ? "em 1º de janeiro" : "ao gravar"}`}
+                   nomes={previa.promovidos} caixa={styles.caixaNovo} texto={styles.novoText} />
+            <Lista titulo="Cursistas sem pasta: deixam o movimento" nomes={previa.cursistas_sem_pasta}
+                   caixa={styles.caixaNeutra} texto={styles.neutroText} />
+            <Lista titulo="Servos sem pasta no Pós-Encontro: ficam inativos" nomes={previa.servos_sem_pasta}
+                   caixa={styles.caixaNeutra} texto={styles.neutroText} />
 
             {previa.pastas.map((p) => <Pasta key={`${p.linha}-${p.funcao_planilha}`} p={p} />)}
 
