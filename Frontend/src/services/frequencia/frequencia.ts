@@ -46,6 +46,17 @@ export interface MissaoComFrequencia {
   tem_frequencia: boolean;
 }
 
+export interface MissaoDoServo {
+  data: string;
+  descricao: string | null;
+  status: StatusFrequencia;
+}
+
+export interface MissoesDoServoResponse {
+  ano: number;
+  data: MissaoDoServo[];
+}
+
 // ── Funções de serviço ────────────────────────────────────────────────────────
 
 export function getFrequenciaById(id_missao: number) {
@@ -56,6 +67,11 @@ export function getFrequenciaById(id_missao: number) {
 
 export function getFrequenciaServos() {
   return apiRequest<FrequenciaServosResponse>(`/frequencia/servos`);
+}
+
+// Datas de cada status do servo no ano (coordenação confere pela Lista)
+export function getMissoesDoServo(id_servo: number) {
+  return apiRequest<MissoesDoServoResponse>(`/frequencia/servo/${id_servo}/missoes`);
 }
 
 export function getMissoesComFrequencia(){

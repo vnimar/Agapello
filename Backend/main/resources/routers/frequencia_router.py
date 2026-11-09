@@ -15,6 +15,7 @@ from ..schemas.frequencia_schema import (
     FrequenciaServosResponse,
     MissoesComFrequenciaResponse,
     MissaoComFrequencia,
+    MissoesDoServoResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,42 @@ def get_frequencia_by_servo():
         raise HTTPException(status_code=500, detail="Erro interno.")
 
     return FrequenciaServosResponse(message="Resumo de frequência", ano=ano, data=dados)
+
+@router.get("/servo/{id_servo}/missoes", response_model=MissoesDoServoResponse)
+def get_missoes_do_servo(id_servo: int):
+    # Datas das presenças/justificadas/faltas de um servo, para a coordenação
+    # conferir pela Lista. Mesma regra do /servos e do /auth/me/resumo.
+
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute("SELECT EXTRACT(YEAR FROM CURRENT_DATE)::int AS ano")
+                ano = cursor.fetchone()["ano"]
+
+                cursor.execute("SELECT 1 FROM servo WHERE id_servo = %s", (id_servo,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=404, detail="Servo não encontrado.")
+
+                cursor.execute("""
+                    SELECT m.data::text AS data, m.descricao, f.status
+                    FROM frequencia f
+                    JOIN missao m ON m.id_missao = f.id_missao
+                    WHERE f.id_servo = %s
+                      AND m.conta_frequencia
+                      AND m.data <= CURRENT_DATE
+                      AND EXTRACT(YEAR FROM m.data) = %s
+                    ORDER BY m.data DESC, m.id_missao DESC
+                """, (id_servo, ano))
+                missoes = cursor.fetchall()
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar as missões do servo {id_servo}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    return MissoesDoServoResponse(ano=ano, data=missoes)
 
 @router.get("/missoes", response_model=MissoesComFrequenciaResponse)
 def get_missoes_com_frequencia():

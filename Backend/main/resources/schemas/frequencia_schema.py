@@ -67,3 +67,12 @@ class MissaoComFrequencia(BaseModel):
 
 class MissoesComFrequenciaResponse(BaseModel):
     data: list[MissaoComFrequencia]
+
+class MissaoDoServo(BaseModel):
+    data: str
+    descricao: Optional[str] = None
+    status: StatusFrequencia
+
+class MissoesDoServoResponse(BaseModel):
+    ano: int
+    data: list[MissaoDoServo]

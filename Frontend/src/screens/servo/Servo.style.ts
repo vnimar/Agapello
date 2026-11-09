@@ -493,6 +493,37 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "transparent", // ganha a cor do status quando está aberto
+  },
+
+  datasBox: {
+    backgroundColor: Cores.fundo,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+
+  dataRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Cores.borda,
+  },
+
+  dataDia: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Cores.texto,
+    width: 48,
+  },
+
+  dataDescricao: {
+    flex: 1,
+    fontSize: 13,
+    color: Cores.texto,
   },
 
   contadorNum: {

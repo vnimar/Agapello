@@ -16,7 +16,10 @@ import { styles } from "./Servo.style";
 import { getServos, passouDoPrazo, putStatusServo } from "../../services/servos/servos";
 import {
   getFrequenciaServos,
+  getMissoesDoServo,
   FrequenciaServoResumo,
+  MissaoDoServo,
+  StatusFrequencia,
 } from "../../services/frequencia/frequencia";
 import NomeComApelido, { nomeExibido, textoDeBusca } from "../../../components/NomeComApelido";
 import { Cores } from "@/constants/theme";
@@ -61,6 +64,32 @@ function ServoDetalhes({
     ? resumo.presente + resumo.justificada + resumo.falta
     : 0;
 
+  // Tocar num contador mostra as datas daquele status (busca uma vez só)
+  const [statusAberto, setStatusAberto] = useState<StatusFrequencia | null>(null);
+  const [missoes, setMissoes] = useState<MissaoDoServo[] | null>(null);
+  const [carregandoMissoes, setCarregandoMissoes] = useState(false);
+
+  async function alternarStatus(status: StatusFrequencia) {
+    if (statusAberto === status) {
+      setStatusAberto(null);
+      return;
+    }
+    setStatusAberto(status);
+    if (missoes !== null) return;
+    setCarregandoMissoes(true);
+    try {
+      const resposta = await getMissoesDoServo(servo.id);
+      setMissoes(resposta.data);
+    } catch {
+      Alert.alert("Erro", "Não foi possível carregar as datas.");
+      setStatusAberto(null);
+    } finally {
+      setCarregandoMissoes(false);
+    }
+  }
+
+  const datasDoStatus = (missoes ?? []).filter((m) => m.status === statusAberto);
+
   return (
     <View>
       {/* Barra de frequência */}
@@ -87,23 +116,55 @@ function ServoDetalhes({
       {/* Mini contadores P / J / F */}
       {resumo && total > 0 && (
         <View style={styles.contadores}>
-          {[
-            { label: "Presentes", val: resumo.presente, cor: STATUS_CORES.Presente },
-            { label: "Justificadas", val: resumo.justificada, cor: STATUS_CORES.Justificada },
-            { label: "Faltas", val: resumo.falta, cor: STATUS_CORES.Falta },
-          ].map((item) => (
-            <View
-              key={item.label}
-              style={[styles.contadorCard, { backgroundColor: item.cor.fundo }]}
-            >
-              <Text style={[styles.contadorNum, { color: item.cor.texto }]}>
-                {item.val}
-              </Text>
-              <Text style={[styles.contadorLabel, { color: item.cor.texto }]}>
-                {item.label}
-              </Text>
-            </View>
-          ))}
+          {([
+            { status: "Presente", label: "Presentes", val: resumo.presente },
+            { status: "Justificada", label: "Justificadas", val: resumo.justificada },
+            { status: "Falta", label: "Faltas", val: resumo.falta },
+          ] as const).map((item) => {
+            const cor = STATUS_CORES[item.status];
+            const aberto = statusAberto === item.status;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.contadorCard,
+                  { backgroundColor: cor.fundo },
+                  aberto && { borderColor: cor.forte },
+                ]}
+                onPress={() => alternarStatus(item.status)}
+                disabled={item.val === 0}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.contadorNum, { color: cor.texto }]}>
+                  {item.val}
+                </Text>
+                <Text style={[styles.contadorLabel, { color: cor.texto }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Datas do contador escolhido */}
+      {statusAberto && (
+        <View style={styles.datasBox}>
+          {carregandoMissoes ? (
+            <ActivityIndicator size="small" color={Cores.primaria} />
+          ) : (
+            datasDoStatus.map((m, i) => (
+              <View
+                key={`${m.data}-${i}`}
+                style={[styles.dataRow, i === datasDoStatus.length - 1 && styles.dadosRowLast]}
+              >
+                <Text style={styles.dataDia}>{diaMes(m.data)}</Text>
+                <Text style={styles.dataDescricao} numberOfLines={2}>
+                  {m.descricao || "Missão"}
+                </Text>
+              </View>
+            ))
+          )}
         </View>
       )}
 
@@ -151,6 +212,12 @@ function ServoDetalhes({
       )}
     </View>
   );
+}
+
+// "2026-03-15" → "15/03"
+function diaMes(data: string) {
+  const [, mes, dia] = data.split("-");
+  return `${dia}/${mes}`;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
