@@ -4,6 +4,7 @@ Virada do ano: as pastas importadas em dezembro passam a valer em 1º de janeiro
   servo Aguardando com pasta no Pós  → Ativo (o cursista fica 'promovido')
   servo Aguardando sem pasta no Pós  → apagado (o cursista deixa o movimento)
   cursista do ano anterior sem pasta → 'concluido'
+  marcado para subir ao apostolado   → área do apostolado (não é inativado)
   servo Ativo sem pasta no Pós       → Inativo ("Sem pasta em <ano>")
 
 Roda sozinha uma vez por ano (tabela virada_ano), na primeira requisição do dia
@@ -57,9 +58,12 @@ def aplicar_virada(cursor, ano: int, forcar: bool = False, registrado_por: Optio
 
     cursor.execute("UPDATE cursista SET status = 'concluido' WHERE ano = %s AND status = 'ativo'", (ano - 1,))
 
+    # Quem sobe para o apostolado não tem pasta do discipulado e não é inativado
+    subir_para_apostolado(cursor, ano)
+
     cursor.execute(f"""
         SELECT s.id_servo FROM servo s
-        WHERE s.status = 'Ativo' AND NOT {com_pasta}
+        WHERE s.status = 'Ativo' AND s.area = 'discipulado' AND NOT {com_pasta}
     """, (ano,))
     inativados = [i for (i,) in cursor.fetchall()]
     for id_servo in inativados:
@@ -72,6 +76,15 @@ def aplicar_virada(cursor, ano: int, forcar: bool = False, registrado_por: Optio
     logger.info(f"Virada de {ano}: {len(promovidos)} cursista(s) promovido(s), "
                 f"{len(inativados)} servo(s) inativado(s).")
     return True
+
+
+def subir_para_apostolado(cursor, ano: int) -> int:
+    """Quem foi marcado para subir em `ano` passa para a área do apostolado."""
+    cursor.execute("""
+        UPDATE servo SET area = 'apostolado', sobe_apostolado_em = NULL
+        WHERE sobe_apostolado_em = %s AND status = 'Ativo' AND area = 'discipulado'
+    """, (ano,))
+    return cursor.rowcount
 
 
 def _virada_do_dia() -> None:

@@ -228,6 +228,8 @@ export default function ImportarPastasScreen() {
                    caixa={styles.caixaNeutra} texto={styles.neutroText} />
             <Lista titulo="Servos sem pasta no Pós-Encontro: ficam inativos" nomes={previa.servos_sem_pasta}
                    caixa={styles.caixaNeutra} texto={styles.neutroText} />
+            <Lista titulo="Sobem para o apostolado (não ficam inativos)" nomes={previa.sobem_apostolado}
+                   caixa={styles.caixaNeutra} texto={styles.neutroText} />
 
             {previa.pastas.map((p) => <Pasta key={`${p.linha}-${p.funcao_planilha}`} p={p} />)}
 

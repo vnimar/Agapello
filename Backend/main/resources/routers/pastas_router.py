@@ -113,7 +113,7 @@ def importar_pastas(
             # Aguardando é cursista que já recebeu pasta: entra pelo lado do cursista.
             cursor.execute("""
                 SELECT id_servo, nome, apelido, status FROM servo
-                WHERE status NOT IN ('Excluido', 'Aguardando')
+                WHERE status NOT IN ('Excluido', 'Aguardando') AND area = 'discipulado'
             """)
             servos = cursor.fetchall()
             nome_servo = {i: com_apelido(n, a) for i, n, a, _ in servos}
@@ -299,10 +299,14 @@ def importar_pastas(
             # O que a virada do ano vai fazer (ver resources/virada.py)
             tem_pos = "EXISTS (SELECT 1 FROM servo_pasta sp WHERE sp.id_servo = s.id_servo AND sp.ano = %s AND sp.momento = 'pos')"
             cursor.execute(f"""
-                SELECT s.nome, s.apelido FROM servo s WHERE s.status = 'Ativo' AND NOT {tem_pos}
+                SELECT s.nome, s.apelido, s.sobe_apostolado_em IS NOT DISTINCT FROM %s FROM servo s
+                WHERE s.status = 'Ativo' AND s.area = 'discipulado' AND NOT {tem_pos}
                 ORDER BY COALESCE(s.apelido, s.nome), s.nome
-            """, (ano,))
-            servos_sem_pasta = [com_apelido(n, a) for n, a in cursor.fetchall()]
+            """, (ano, ano))
+            sem_pos = cursor.fetchall()
+            # Quem sobe para o apostolado fica sem pasta do discipulado, mas não sai
+            sobem_apostolado = [com_apelido(n, a) for n, a, sobe in sem_pos if sobe]
+            servos_sem_pasta = [com_apelido(n, a) for n, a, sobe in sem_pos if not sobe]
             cursor.execute(f"""
                 SELECT c.nome, c.apelido, COALESCE(s.status = 'Aguardando' AND {tem_pos}, false)
                 FROM cursista c LEFT JOIN servo s ON s.id_servo = c.id_servo
@@ -363,4 +367,5 @@ def importar_pastas(
         ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos, antigos=antigos,
         pastas=resultado, erros=erros, avisos=avisos,
         promovidos=promovidos, cursistas_sem_pasta=cursistas_sem_pasta, servos_sem_pasta=servos_sem_pasta,
+        sobem_apostolado=sobem_apostolado,
     )

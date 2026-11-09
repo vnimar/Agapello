@@ -31,6 +31,11 @@ export default function TabLayout() {
     return <Redirect href="/trocar-senha" />;
   }
 
+  // Quem está no apostolado não vê nada do discipulado
+  if (usuario?.area === "apostolado") {
+    return <Redirect href="/apostolado" />;
+  }
+
   // Abas só de quem cuida dos servos ficam escondidas para os outros perfis
   const soCoordServos = cuidaDosServos ? {} : { href: null };
 

@@ -43,6 +43,7 @@ export interface ImportacaoPastas {
   promovidos: string[];          // cursistas que viram servos
   cursistas_sem_pasta: string[]; // deixam o movimento
   servos_sem_pasta: string[];    // ficam inativos
+  sobem_apostolado?: string[];   // marcados para subir: sem pasta, mas não saem
 }
 
 export interface ArquivoEscolhido {

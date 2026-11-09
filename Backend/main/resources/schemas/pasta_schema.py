@@ -43,3 +43,4 @@ class PastaImportResponse(BaseModel):
     promovidos: list[str] = []           # cursistas que viram servos
     cursistas_sem_pasta: list[str] = []  # deixam o movimento
     servos_sem_pasta: list[str] = []     # ficam inativos
+    sobem_apostolado: list[str] = []     # marcados para subir: sem pasta, mas não saem

@@ -18,6 +18,7 @@ export interface Usuario {
   id_servo: number | null;
   apelido?: string | null;   // do servo ligado; vai no "Olá"
   trocar_senha?: boolean;  // senha temporária: precisa trocar antes de usar o app
+  area?: "discipulado" | "apostolado"; // cada área só vê a sua (versões antigas do backend: discipulado)
 }
 
 export const PERFIL_LABEL: Record<Perfil, string> = {

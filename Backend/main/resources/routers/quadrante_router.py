@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..bd.db import get_connection
-from ..config.security import get_current_user
+from ..config.security import exigir_discipulado
 from ..schemas.servo_schema import MinhaPasta
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Quadrante: os dados de todos os servos ativos e dos cursistas do ano, abertos
 # a qualquer servo logado. Sem frequência (essa fica com quem cuida dos servos).
 # Sempre exige login, mesmo com o LOGIN_OBRIGATORIO desligado: são dados pessoais.
-router = APIRouter(prefix="/quadrante", tags=["Quadrante"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/quadrante", tags=["Quadrante"], dependencies=[Depends(exigir_discipulado)])
 
 
 class DadosPessoais(BaseModel):
@@ -66,7 +66,7 @@ def ver_quadrante():
                 FROM servo s
                 LEFT JOIN servo_pasta sp ON sp.id_servo = s.id_servo AND sp.ano = %(ano)s
                 LEFT JOIN pasta p ON p.id_pasta = sp.id_pasta
-                WHERE s.status = 'Ativo'
+                WHERE s.status = 'Ativo' AND s.area = 'discipulado'
                 GROUP BY s.id_servo
                 ORDER BY COALESCE(s.apelido, s.nome), s.nome
             """, {"ano": ano})

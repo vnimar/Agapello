@@ -71,6 +71,7 @@ class UsuarioLogado(BaseModel):
     id_servo: Optional[int] = None
     apelido: Optional[str] = None  # do servo ligado; o app usa no "Olá"
     trocar_senha: bool = False  # senha temporária: o app obriga a trocar
+    area: Literal["discipulado", "apostolado"] = "discipulado"  # do servo ligado; cada área só vê a sua
 
     def tem(self, *perfis: str) -> bool:
         """Se a pessoa tem pelo menos um destes perfis."""

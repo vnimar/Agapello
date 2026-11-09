@@ -70,3 +70,31 @@ export function putDadosServo(id_servo: number, dados: DadosServo) {
     body: JSON.stringify(dados),
   });
 }
+
+// ── Subida para o apostolado (administrador) ──────────────────────────────────
+
+export interface ServoParaApostolado {
+  id: number;
+  nome: string;
+  apelido: string | null;
+  ano_ingresso: number | null;
+  elegivel: boolean; // 3 anos completos no convite (o app só avisa)
+  marcado: boolean;  // já marcado para subir no ano
+}
+
+export interface SubidaApostolado {
+  ano: number;
+  servos: ServoParaApostolado[];
+  no_apostolado: string[];
+}
+
+export function getSubidaApostolado(ano: number): Promise<SubidaApostolado> {
+  return apiRequest(`/servos/apostolado?ano=${ano}`);
+}
+
+export function marcarSubidaApostolado(ano: number, ids: number[]): Promise<{ message: string; marcados: number }> {
+  return apiRequest("/servos/apostolado", {
+    method: "PUT",
+    body: JSON.stringify({ ano, ids }),
+  });
+}

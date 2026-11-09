@@ -187,6 +187,9 @@ export default function ContaScreen() {
               {temPerfil(usuario, PERFIS_ADMIN) && (
                 <Acao icone="archive-outline" texto="Revisão de inativos" onPress={() => router.push("/revisao-inativos")} />
               )}
+              {temPerfil(usuario, ["administrador"]) && (
+                <Acao icone="arrow-up-circle-outline" texto="Subir para o apostolado" onPress={() => router.push("/subir-apostolado")} />
+              )}
               {usuario.id_servo && (
                 <Acao icone="create-outline" texto="Meus dados" onPress={abrirMeusDados} />
               )}

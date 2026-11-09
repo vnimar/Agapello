@@ -111,7 +111,8 @@ def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
         with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT u.id_usuario, u.nome, u.email, u.perfil, u.id_servo, u.trocar_senha,
-                       COALESCE(pp.perfis, '{}') AS perfis_pasta, s.apelido
+                       COALESCE(pp.perfis, '{}') AS perfis_pasta, s.apelido,
+                       COALESCE(s.area, 'discipulado') AS area
                 FROM usuario u
                 LEFT JOIN servo s ON s.id_servo = u.id_servo
                 LEFT JOIN vw_perfis_pasta pp ON pp.id_servo = u.id_servo
@@ -126,7 +127,7 @@ def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
     perfis = ordenar_perfis([row[3], *row[6]])
     return UsuarioLogado(
         id=row[0], nome=row[1], email=row[2], perfil=perfis[0], perfis=perfis,
-        id_servo=row[4], trocar_senha=row[5], apelido=row[7],
+        id_servo=row[4], trocar_senha=row[5], apelido=row[7], area=row[8],
     )
 
 
@@ -175,12 +176,25 @@ def get_current_user(usuario: Optional[UsuarioLogado] = Depends(get_optional_use
     return usuario
 
 
+_so_discipulado = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="Esta área é do discipulado. Quem está no apostolado vê só a área do apostolado.",
+)
+
+
+def exigir_discipulado(usuario: UsuarioLogado = Depends(get_current_user)) -> UsuarioLogado:
+    """Exige login de alguém do discipulado (tudo o que o app tem hoje é do discipulado)."""
+    if usuario.area == "apostolado":
+        raise _so_discipulado
+    return usuario
+
+
 def require_perfil(*perfis: PerfilType):
     """
-    Exige um dos perfis. Uso:
+    Exige um dos perfis (e ser do discipulado). Uso:
         @router.post("/rota", dependencies=[Depends(require_perfil("administrador"))])
     """
-    def dependencia(usuario: UsuarioLogado = Depends(get_current_user)) -> UsuarioLogado:
+    def dependencia(usuario: UsuarioLogado = Depends(exigir_discipulado)) -> UsuarioLogado:
         if not usuario.tem(*perfis):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -208,6 +222,8 @@ def exigir_perfil(*perfis: PerfilType):
                 raise _credenciais_invalidas
             logger.warning("Chamada sem login: %s %s", request.method, request.url.path)
             return None
+        if usuario.area == "apostolado":
+            raise _so_discipulado
         if perfis and not usuario.tem(*perfis):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

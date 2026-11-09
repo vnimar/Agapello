@@ -84,6 +84,25 @@ class InativoParaRevisao(BaseModel):
 class ExcluirServos(BaseModel):
     ids: list[int]
 
+# ── Subida para o apostolado (administrador) ─────────────────────────────────
+
+class ServoParaApostolado(BaseModel):
+    id: int
+    nome: str
+    apelido: Optional[str] = None
+    ano_ingresso: Optional[int] = None
+    elegivel: bool        # 3 anos completos no convite (o app só avisa)
+    marcado: bool         # já marcado para subir no ano
+
+class SubidaApostolado(BaseModel):
+    ano: int
+    servos: list[ServoParaApostolado]
+    no_apostolado: list[str]  # quem já está no apostolado
+
+class MarcarApostolado(BaseModel):
+    ano: int
+    ids: list[int]
+
 # ── Minha conta: o próprio servo ─────────────────────────────────────────────
 
 class MinhaFrequencia(BaseModel):

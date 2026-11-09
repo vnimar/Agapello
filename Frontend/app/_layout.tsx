@@ -29,6 +29,8 @@ export default function RootLayout() {
             <Stack.Screen name="cursistas-gerenciar" />
             <Stack.Screen name="importar-cursistas" />
             <Stack.Screen name="historico" />
+            <Stack.Screen name="subir-apostolado" />
+            <Stack.Screen name="apostolado" options={{ gestureEnabled: false }} />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>

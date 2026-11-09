@@ -269,8 +269,8 @@ export default function ListaServos() {
         ) {
           servosArray = (servosData as any).data;
         }
-        // Excluídos (revisão anual) não aparecem mais
-        setServos(servosArray.filter((s) => s.status !== "Excluido"));
+        // Excluídos e quem subiu para o apostolado só ficam nas chamadas antigas
+        setServos(servosArray.filter((s) => s.status !== "Excluido" && s.status !== "Apostolado"));
 
         const freqMap: Record<number, FrequenciaServoResumo> = {};
         const freqList =
