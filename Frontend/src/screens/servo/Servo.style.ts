@@ -156,7 +156,7 @@ export const styles = StyleSheet.create({
   // ─── MODAL (bottom sheet) ───────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(27,43,94,0.45)",
+    backgroundColor: Cores.fundoModal,
   },
 
   modalContent: {
@@ -382,7 +382,7 @@ export const styles = StyleSheet.create({
   },
 
   tagInativo: {
-    backgroundColor: "#EEF1F6",
+    backgroundColor: Cores.fundoSuave,
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -427,7 +427,7 @@ export const styles = StyleSheet.create({
   },
 
   avatarInativo: {
-    backgroundColor: "#EEF1F6",
+    backgroundColor: Cores.fundoSuave,
   },
 
   avatarText: {

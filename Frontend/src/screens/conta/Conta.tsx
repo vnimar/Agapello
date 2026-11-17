@@ -182,6 +182,9 @@ export default function ContaScreen() {
                 <Acao icone="folder-open-outline" texto="Importar pastas" onPress={() => router.push("/importar-pastas")} />
               )}
               {temPerfil(usuario, PERFIS_ADMIN) && (
+                <Acao icone="calendar-outline" texto="Importar calendário" onPress={() => router.push("/importar-calendario")} />
+              )}
+              {temPerfil(usuario, PERFIS_ADMIN) && (
                 <Acao icone="school-outline" texto="Gerenciar cursistas" onPress={() => router.push("/cursistas-gerenciar")} />
               )}
               {temPerfil(usuario, PERFIS_ADMIN) && (

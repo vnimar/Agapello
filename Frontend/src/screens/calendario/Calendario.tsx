@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { styles } from "./Calendario.styles";
 import { getMissoes, Missao } from "../../services/missao/missao";
 import { MissaoEditModal } from "./CalendarioAdmin";
@@ -103,9 +103,8 @@ export default function CalendarioScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  // Recarrega ao voltar para a aba (ex.: depois de importar a planilha do calendário)
+  useFocusEffect(useCallback(() => { carregar(); }, [carregar]));
 
   useEffect(() => {
     if (!dataParam) return;
@@ -369,6 +368,12 @@ export default function CalendarioScreen() {
             <TouchableOpacity style={styles.contaFrequenciaButton} onPress={() => setContaVisible(true)}>
               <Ionicons name="checkmark-done-outline" size={18} color={Cores.primaria} />
               <Text style={styles.addMissionText}>O que conta na frequência</Text>
+            </TouchableOpacity>
+          )}
+          {modoEdicao && (
+            <TouchableOpacity style={styles.contaFrequenciaButton} onPress={() => router.push("/importar-calendario")}>
+              <Ionicons name="document-attach-outline" size={18} color={Cores.primaria} />
+              <Text style={styles.addMissionText}>Importar planilha do calendário</Text>
             </TouchableOpacity>
           )}
         </View>

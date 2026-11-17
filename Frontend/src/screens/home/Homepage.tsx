@@ -1,7 +1,7 @@
 import {Ionicons} from '@expo/vector-icons';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {ActivityIndicator, ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {useRouter} from 'expo-router';
+import {useFocusEffect, useRouter} from 'expo-router';
 import Svg, {Circle, Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
 
 import ScreenWrapper from '../../../components/ScreenWrapper';
@@ -92,14 +92,18 @@ const Home: React.FC = () => {
   const [resumo, setResumo] = useState<MeuResumo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const idUsuario = usuario?.id;
+
+  // Recarrega ao voltar para a Home (ex.: depois de uma chamada, o foguinho muda)
+  // e ao trocar de usuário (entrar/sair), para usar o token certo
+  useFocusEffect(useCallback(() => {
     async function carregar() {
       // allSettled: sem missão futura o /proxima dá 404, e isso não pode
       // esconder o resto da tela
       const [proxima, todas, meuResumo] = await Promise.allSettled([
         getProximaMissao(),
         getMissoes(),
-        usuario ? buscarMeuResumo() : Promise.resolve(null),
+        idUsuario ? buscarMeuResumo() : Promise.resolve(null),
       ]);
       const atual = proxima.status === 'fulfilled' ? proxima.value : null;
       setMissao(atual);
@@ -121,8 +125,7 @@ const Home: React.FC = () => {
       setLoading(false);
     }
     carregar();
-    // Recarrega ao trocar de usuário (entrar/sair), para usar o token certo
-  }, [usuario?.id]);
+  }, [idUsuario]));
 
   // Abre o calendário já no dia da missão
   const abrirNoCalendario = (m: Missao | null) =>

@@ -53,22 +53,27 @@ class MissaoUpdate(MissaoCreate):
     pass
 
 
-class MissaoImportRequest(BaseModel):
-    missoes: list[MissaoCreate] = Field(min_length=1, max_length=200)
-    # false → só valida e devolve a prévia; true → grava
-    confirmar: bool = False
-
-
 class MissaoImportItem(BaseModel):
-    data: str
+    linha: int
+    data: Optional[str] = None
     descricao: str
     horario: Optional[str] = None
     local: Optional[str] = None
     publico: Publico
-    situacao: Literal["nova", "duplicada"]
+    conta_frequencia: bool
+    observacao: Optional[str] = None
+    situacao: Literal["nova", "duplicada", "erro"]
+    erro: Optional[str] = None
+    avisos: list[str] = []
+    # Nome que ainda não existe no calendário (confira a grafia)
+    nome_novo: bool = False
 
 
 class MissaoImportResponse(BaseModel):
     message: str
     gravadas: int
+    novas: int
+    duplicadas: int
+    erros: list[str]
+    avisos: list[str]
     itens: list[MissaoImportItem]

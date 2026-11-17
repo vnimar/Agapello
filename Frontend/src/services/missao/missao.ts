@@ -1,5 +1,5 @@
-// eslint-disable-next-line import/namespace
 import {apiRequest} from "../api"
+import type { ArquivoEscolhido } from "../pastas/pastas";
 
 export type PublicoMissao = "servos" | "cursistas" | "ambos";
 
@@ -25,12 +25,28 @@ export interface MissaoInput {
 }
 
 export interface MissaoImportItem {
-  data: string;
+  linha: number;
+  data: string | null;     // YYYY-MM-DD (null quando a data da planilha é inválida)
   descricao: string;
   horario: string | null;
   local: string | null;
   publico: PublicoMissao;
-  situacao: "nova" | "duplicada";
+  conta_frequencia: boolean;
+  observacao: string | null;
+  situacao: "nova" | "duplicada" | "erro";
+  erro: string | null;
+  avisos: string[];
+  nome_novo: boolean;      // nome que ainda não existe no calendário
+}
+
+export interface ImportacaoCalendario {
+  message: string;
+  gravadas: number;
+  novas: number;
+  duplicadas: number;
+  erros: string[];
+  avisos: string[];
+  itens: MissaoImportItem[];
 }
 
 //Endpoint para buscar informação na Api
@@ -68,15 +84,22 @@ export function excluirMissao(id_missao: number) {
     });
     }
 
-export function importarMissoes(missoes: MissaoInput[], confirmar: boolean) {
-    return apiRequest<{ message: string; gravadas: number; itens: MissaoImportItem[] }>(
-        "/missao/importar",
-        {
-            method: "POST",
-            body: JSON.stringify({ missoes, confirmar }),
-        }
-    );
-    }
+// Planilha do calendário (Modelo - Calendário). confirmar=false → só a prévia.
+export function importarCalendario(arquivo: ArquivoEscolhido, confirmar: boolean) {
+  const form = new FormData();
+  if (arquivo.file) {
+    form.append("arquivo", arquivo.file);
+  } else {
+    // React Native: o fetch lê o arquivo pela uri
+    form.append("arquivo", {
+      uri: arquivo.uri,
+      name: arquivo.name,
+      type: arquivo.mimeType ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    } as any);
+  }
+  form.append("confirmar", String(confirmar));
+  return apiRequest<ImportacaoCalendario>("/missao/importar", { method: "POST", body: form });
+}
 
 // Marca de uma vez o que conta (ou não) na frequência; só as alteradas
 export function marcarContaFrequencia(ids_conta: number[], ids_nao_conta: number[]) {

@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/namespace
 import { apiRequest } from "../api";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────

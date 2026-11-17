@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     color: STATUS_CORES.Justificada.texto,
   },
   jaNoApostolado: {
-    backgroundColor: "#FCEBEB",
+    backgroundColor: Cores.erroFundo,
   },
   jaTexto: {
     color: VERMELHO_APOSTOLADO,

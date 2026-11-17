@@ -5,7 +5,7 @@ export const adminStyles = StyleSheet.create({
   // ── Folha ──
   sheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(27,43,94,0.35)",
+    backgroundColor: Cores.fundoModal,
     justifyContent: "flex-end",
   },
   sheet: {
@@ -136,13 +136,13 @@ export const adminStyles = StyleSheet.create({
   },
   btnDanger: {
     flex: 1,
-    backgroundColor: "#FCEBEB",
+    backgroundColor: Cores.erroFundo,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   btnDangerText: {
-    color: "#A32D2D",
+    color: Cores.erro,
     fontSize: 15,
     fontWeight: "700",
   },

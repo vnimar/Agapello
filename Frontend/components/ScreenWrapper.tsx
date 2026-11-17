@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Cores } from '@/constants/theme';
 
 type ScreenWrapperProps = {
   children: React.ReactNode;
@@ -11,7 +12,7 @@ type ScreenWrapperProps = {
 export default function ScreenWrapper({
   children,
   scrollable = true,
-  backgroundColor = '#F4F6F8',
+  backgroundColor = Cores.fundo,
 }: ScreenWrapperProps) {
   const insets = useSafeAreaInsets();
   const Container = scrollable ? ScrollView : View;

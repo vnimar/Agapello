@@ -1,3 +1,4 @@
+import { Cores } from '@/constants/theme';
 import { StatusFrequencia } from '@/src/services/frequencia/frequencia';
 
 type CorStatus = { fundo: string; texto: string; forte: string };
@@ -8,8 +9,8 @@ type CorStatus = { fundo: string; texto: string; forte: string };
  */
 export const STATUS_CORES: Record<StatusFrequencia, CorStatus> = {
   Presente: { fundo: '#EAF3DE', texto: '#3B6D11', forte: '#5A9E1E' },
-  Justificada: { fundo: '#FAEEDA', texto: '#854F0B', forte: '#BA7517' },
-  Falta: { fundo: '#FCEBEB', texto: '#A32D2D', forte: '#E24B4A' },
+  Justificada: { fundo: Cores.avisoFundo, texto: Cores.aviso, forte: '#BA7517' },
+  Falta: { fundo: Cores.erroFundo, texto: Cores.erro, forte: '#E24B4A' },
 };
 
 const SEM_DADOS: CorStatus = { fundo: '#F1F4F9', texto: '#9AA9C7', forte: '#C9D3E3' };

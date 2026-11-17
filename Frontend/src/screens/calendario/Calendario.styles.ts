@@ -111,7 +111,7 @@ export const styles = StyleSheet.create({
     color: Cores.texto,
   },
   otherMonthText: {
-    color: "#C3CCDA",
+    color: Cores.textoDesativado,
   },
   missionDayText: {
     fontWeight: "700",
@@ -218,8 +218,8 @@ export const styles = StyleSheet.create({
   },
   missionObservacao: {
     fontSize: 13,
-    color: "#854F0B",
-    backgroundColor: "#FAEEDA",
+    color: Cores.aviso,
+    backgroundColor: Cores.avisoFundo,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, router } from "expo-router";
+import { Cores } from "@/constants/theme";
 import { useAuth } from "../../context/AuthContext";
 import { trocarSenha } from "../../services/auth/auth";
 import { authStyles as styles } from "../login/Login.styles";
@@ -76,7 +77,7 @@ export default function TrocarSenhaObrigatoria() {
               disabled={salvando}
             >
               {salvando ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={Cores.textoSobrePrimaria} size="small" />
               ) : (
                 <Text style={styles.btnPrimaryText}>Salvar e continuar</Text>
               )}

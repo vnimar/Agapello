@@ -1,15 +1,17 @@
+import difflib
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, File, Form, Request, Response, UploadFile
 from ..bd.db import get_connection
 import psycopg2.extras
 from datetime import date
 from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, exigir_login, require_perfil
+from ..importacao.calendario_xlsx import ler_planilha
+from ..importacao.pastas_xlsx import PlanilhaInvalida, normalizar
 from ..schemas.missao_schema import (
     MissaoResponse,
     MissaoCreate,
     MissaoUpdate,
-    MissaoImportRequest,
     MissaoImportItem,
     MissaoImportResponse,
     MissaoContaFrequencia,
@@ -219,57 +221,110 @@ def excluir_missao(id_missao: int):
 
     return Response(status_code=204)
 
+TAMANHO_MAXIMO = 5 * 1024 * 1024
+
+
 @router.post("/importar", response_model=MissaoImportResponse, dependencies=[Depends(verify_admin)])
-def importar_missoes(body: MissaoImportRequest, request: Request):
+def importar_missoes(
+    request: Request,
+    arquivo: UploadFile = File(...),
+    confirmar: bool = Form(False),
+):
     """
-    Importa um calendário inteiro.
-    confirmar=false → só valida e devolve a prévia (nada é gravado).
-    confirmar=true  → grava as novas; as duplicadas (mesma data + descrição) são ignoradas.
+    Importa a planilha do calendário (Modelo - Calendário).
+    confirmar=false → só a prévia. confirmar=true → grava as novas; as que já
+    existem (mesma data e mesmo nome) são ignoradas. Com qualquer erro, nada é gravado.
     """
-
+    conteudo = arquivo.file.read(TAMANHO_MAXIMO + 1)
+    if len(conteudo) > TAMANHO_MAXIMO:
+        raise HTTPException(status_code=413, detail="Arquivo grande demais (máximo 5 MB).")
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                datas = list({m.data for m in body.missoes})
-                cursor.execute(
-                    "SELECT data, lower(descricao) FROM missao WHERE data = ANY(%s)",
-                    (datas,)
-                )
-                existentes = {(d, desc) for d, desc in cursor.fetchall()}
+        lidas = ler_planilha(conteudo)
+    except PlanilhaInvalida as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
-                itens: list[MissaoImportItem] = []
-                novas: list[MissaoCreate] = []
-                for m in body.missoes:
-                    chave = (m.data, m.descricao.lower())
-                    duplicada = chave in existentes
-                    existentes.add(chave)  # também pega repetidas dentro do próprio arquivo
-                    if not duplicada:
+    ano_atual = date.today().year
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("SELECT DISTINCT descricao FROM missao")
+            # Nome normalizado → como está escrito no calendário
+            conhecidos = {normalizar(d): d for (d,) in cursor.fetchall()}
+            datas = list({m.data for m in lidas if m.data})
+            cursor.execute("SELECT data, descricao FROM missao WHERE data = ANY(%s)", (datas,))
+            existentes = {(d, normalizar(desc)) for d, desc in cursor.fetchall()}
+
+            itens: list[MissaoImportItem] = []
+            erros: list[str] = []
+            avisos: list[str] = []
+            novas = []
+            vistos: dict[tuple, int] = {}
+            for m in lidas:
+                chave_nome = normalizar(m.descricao)
+                erro = m.erro
+                if not erro and not (ano_atual - 1 <= m.data.year <= ano_atual + 2):
+                    erro = f"ano {m.data.year} fora do esperado ({ano_atual - 1} a {ano_atual + 2})"
+
+                situacao = "erro" if erro else "nova"
+                nome_novo = False
+                item_avisos = list(m.avisos)
+                if not erro:
+                    chave = (m.data, chave_nome)
+                    if chave in vistos:
+                        situacao = "duplicada"
+                        item_avisos.append(f"repetida na planilha (linha {vistos[chave]})")
+                    elif chave in existentes:
+                        situacao = "duplicada"
+                    vistos.setdefault(chave, m.linha)
+
+                    if chave_nome not in conhecidos:
+                        nome_novo = True
+                        parecidos = difflib.get_close_matches(chave_nome, list(conhecidos), n=1, cutoff=0.8)
+                        if parecidos:
+                            item_avisos.append(f'nome parecido com "{conhecidos[parecidos[0]]}": '
+                                               "se for a mesma missão, use o mesmo nome")
+                    if situacao == "nova":
                         novas.append(m)
-                    itens.append(MissaoImportItem(
-                        data=m.data.isoformat(),
-                        descricao=m.descricao,
-                        horario=m.horario.strftime("%H:%M") if m.horario else None,
-                        local=m.local,
-                        publico=m.publico,
-                        situacao="duplicada" if duplicada else "nova",
-                    ))
 
-                if body.confirmar and novas:
-                    psycopg2.extras.execute_values(cursor, """
-                        INSERT INTO missao (data, descricao, horario, local, publico, conta_frequencia, observacao)
-                        VALUES %s
-                    """, [(m.data, m.descricao, m.horario, m.local, m.publico,
-                           m.conta_frequencia, m.observacao) for m in novas])
+                if erro:
+                    erros.append(f"Linha {m.linha} ({m.descricao or 'sem nome'}): {erro}.")
+                avisos += [f"Linha {m.linha} ({m.descricao}): {a}." for a in item_avisos]
+                itens.append(MissaoImportItem(
+                    linha=m.linha,
+                    data=m.data.isoformat() if m.data else None,
+                    descricao=m.descricao,
+                    horario=m.horario.strftime("%H:%M") if m.horario else None,
+                    local=m.local,
+                    publico=m.publico,
+                    conta_frequencia=m.conta_frequencia,
+                    observacao=m.observacao,
+                    situacao=situacao,
+                    erro=erro,
+                    avisos=item_avisos,
+                    nome_novo=nome_novo,
+                ))
+
+            gravar = confirmar and not erros and novas
+            if gravar:
+                psycopg2.extras.execute_values(cursor, """
+                    INSERT INTO missao (data, descricao, horario, local, publico, conta_frequencia, observacao)
+                    VALUES %s
+                """, [(m.data, m.descricao, m.horario, m.local, m.publico,
+                       m.conta_frequencia, m.observacao) for m in novas])
 
     except Exception as e:
         logger.error(f"Erro ao importar missões: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no servidor.")
 
-    gravadas = len(novas) if body.confirmar else 0
+    gravadas = len(novas) if gravar else 0
     if not gravadas:
         fora_do_historico(request)
-    message = (
-        f"{gravadas} missão(ões) importada(s)." if body.confirmar
-        else f"Prévia: {len(novas)} nova(s), {len(itens) - len(novas)} duplicada(s)."
-    )
-    return MissaoImportResponse(message=message, gravadas=gravadas, itens=itens)
+    duplicadas = sum(1 for i in itens if i.situacao == "duplicada")
+    if erros:
+        message = f"{len(erros)} linha(s) com erro: corrija a planilha. Nada foi gravado."
+    elif confirmar:
+        message = f"{gravadas} missão(ões) gravada(s)."
+    else:
+        message = f"{len(novas)} missão(ões) nova(s)"
+        message += f", {duplicadas} já no calendário (ignoradas)." if duplicadas else "."
+    return MissaoImportResponse(message=message, gravadas=gravadas, novas=len(novas), duplicadas=duplicadas,
+                                erros=erros, avisos=avisos, itens=itens)

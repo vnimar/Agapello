@@ -115,14 +115,14 @@ export const authStyles = StyleSheet.create({
     fontWeight: "600",
   },
   btnDanger: {
-    backgroundColor: "#FCEBEB",
+    backgroundColor: Cores.erroFundo,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: "center",
     marginTop: 20,
   },
   btnDangerText: {
-    color: "#A32D2D",
+    color: Cores.erro,
     fontSize: 15,
     fontWeight: "600",
   },
