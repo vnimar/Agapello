@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 _limitador_login = LimitadorTentativas(
-    "Muitas tentativas de login com senha errada. Tente novamente em 15 minutos."
+    "Muitas tentativas com senha errada. Por segurança, o login deste email "
+    "fica bloqueado por {minutos}, mesmo com a senha certa."
 )
 
 # ── POST /auth/login ──────────────────────────────────────────────────────────

@@ -24,14 +24,19 @@ export default function LoginScreen() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [entrando, setEntrando] = useState(false);
   const senhaRef = useRef<TextInput>(null);
+  // O state demora um render: sem a ref, o "ir" do teclado + o toque no botão
+  // mandam dois logins, e cada senha errada conta duas vezes no bloqueio
+  const enviandoRef = useRef(false);
 
   const fechar = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
   const confirmar = async () => {
+    if (enviandoRef.current) return;
     if (!email.trim() || !senha) {
       Alert.alert("Atenção", "Informe o email e a senha.");
       return;
     }
+    enviandoRef.current = true;
     setEntrando(true);
     try {
       await entrar(email, senha);
@@ -39,6 +44,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       Alert.alert("Não foi possível entrar", err?.message || "Tente novamente.");
     } finally {
+      enviandoRef.current = false;
       setEntrando(false);
     }
   };
@@ -91,6 +97,10 @@ export default function LoginScreen() {
               placeholderTextColor={Cores.iconeInativo}
               secureTextEntry={!mostrarSenha}
               autoCapitalize="none"
+              // Com a senha visível o campo vira texto comum: sem isso o teclado
+              // autocorrige ou põe espaço no fim e a senha certa chega errada
+              autoCorrect={false}
+              spellCheck={false}
               autoComplete="password"
               textContentType="password"
               returnKeyType="go"

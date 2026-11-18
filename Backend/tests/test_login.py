@@ -1,4 +1,6 @@
 """Login: quem entra, quem é barrado e o que acontece com a sessão de quem foi bloqueado."""
+import time
+
 import pytest
 
 from conftest import DOMINIO, SENHA_TESTE
@@ -60,3 +62,28 @@ def test_email_inexistente_tem_a_mesma_resposta(client, headers):
 def test_token_falso(client, headers):
     resposta = client.get("/auth/me", headers={**headers(None), "Authorization": "Bearer abc.def.ghi"})
     assert resposta.status_code == 401
+
+
+def test_bloqueio_por_tentativas(client, headers):
+    """5 senhas erradas bloqueiam o email (inclusive a senha certa) e a mensagem diz quanto falta."""
+    from resources.config.rate_limit import MAX_TENTATIVAS
+    from resources.routers import auth_router
+
+    chave = f"testclient|formacao{DOMINIO}"
+    auth_router._limitador_login.limpar(chave)
+    try:
+        for _ in range(MAX_TENTATIVAS):
+            assert entrar(client, headers, "formacao", "senha-errada-123").status_code == 401
+
+        resposta = entrar(client, headers, "formacao")
+        assert resposta.status_code == 429
+        assert "15 minutos" in resposta.json()["detail"]
+        assert int(resposta.headers["retry-after"]) > 800
+
+        # Passados os 15 minutos, um novo erro não bloqueia de novo (o contador zerou)
+        limitador = auth_router._limitador_login
+        limitador._bloqueado_ate[chave] = time.time() - 1
+        assert entrar(client, headers, "formacao", "senha-errada-123").status_code == 401
+        assert entrar(client, headers, "formacao").status_code == 200
+    finally:
+        auth_router._limitador_login.limpar(chave)
