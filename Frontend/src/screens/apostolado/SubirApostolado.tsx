@@ -9,14 +9,23 @@ import { STATUS_CORES } from "@/constants/frequencia";
 import NomeComApelido, { nomeExibido, textoDeBusca } from "@/components/NomeComApelido";
 import { temPerfil } from "../../services/auth/auth";
 import { useAuth } from "../../context/AuthContext";
-import { getSubidaApostolado, marcarSubidaApostolado, SubidaApostolado } from "../../services/servos/servos";
+import {
+  getSubidaApostolado,
+  marcarSubidaApostolado,
+  ServoNoApostolado,
+  SubidaApostolado,
+  voltarAoDiscipulado,
+} from "../../services/servos/servos";
 import { styles as base } from "../pastas/ImportarPastas.styles";
 import { VERMELHO_APOSTOLADO } from "./Apostolado";
 
-// Quem sobe do discipulado para o apostolado. Marcado em dezembro, vale em
-// 1º de janeiro (como as pastas): sai da chamada, da frequência e do quadrante
-// e passa a ver só a área do apostolado. Quem não tem os 3 anos completos
-// (1 de cursista + 2 de servo) pode ser marcado, mas o app avisa.
+// Quem sobe do discipulado para o apostolado. O convite é feito num ano para
+// subir no seguinte: vale em 1º de janeiro (como as pastas), quando sai da
+// chamada, da frequência e do quadrante e passa a ver só a área do apostolado.
+// Quem não tem os 3 anos completos (1 de cursista + 2 de servo) só sobe como
+// exceção, com uma segunda confirmação. Em janeiro aparece também o ano atual
+// (vale na hora), para corrigir a virada. Quem subiu por engano volta pelo
+// botão "Voltar ao discipulado".
 
 function normalizar(texto: string) {
   return texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -65,6 +74,19 @@ export default function SubirApostoladoScreen() {
 
   const escolhidos = (dados?.servos ?? []).filter((s) => marcados.has(s.id));
 
+  const enviar = async (confirmarExcecao: boolean) => {
+    setGravando(true);
+    try {
+      const r = await marcarSubidaApostolado(ano, escolhidos.map((s) => s.id), confirmarExcecao);
+      Alert.alert("Gravado", r.message);
+      await carregar(ano);
+    } catch (err: any) {
+      Alert.alert("Não foi possível gravar", err?.message || "Tente novamente.");
+    } finally {
+      setGravando(false);
+    }
+  };
+
   const gravar = () => {
     const semTempo = escolhidos.filter((s) => !s.elegivel);
     const quando = ano > anoAtual ? `em 1º de janeiro de ${ano}` : "agora";
@@ -72,6 +94,20 @@ export default function SubirApostoladoScreen() {
     const aviso = semTempo.length
       ? `\n\nAtenção: ${semTempo.length} ainda não tem os 3 anos completos (1 de cursista + 2 de servo).`
       : "";
+
+    // Segunda confirmação: quem não tem os 3 anos só sobe como exceção
+    const confirmarExcecao = () =>
+      Alert.alert(
+        "Confirmar exceção?",
+        `${semTempo.map((s) => `• ${nomeExibido(s)}`).join("\n")}\n\n` +
+          `${semTempo.length > 1 ? "Não têm" : "Não tem"} os 3 anos completos e, pela regra, não ` +
+          `${semTempo.length > 1 ? "poderiam ser convidados" : "poderia ser convidado(a)"}. Subir mesmo assim?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Sim, é exceção", style: "destructive", onPress: () => enviar(true) },
+        ]
+      );
+
     Alert.alert(
       escolhidos.length ? `Subir ${escolhidos.length} para o apostolado?` : `Ninguém sobe em ${ano}?`,
       escolhidos.length
@@ -79,16 +115,29 @@ export default function SubirApostoladoScreen() {
         : "A marcação deste ano será apagada.",
       [
         { text: "Cancelar", style: "cancel" },
+        { text: "Gravar", onPress: () => (semTempo.length ? confirmarExcecao() : enviar(false)) },
+      ]
+    );
+  };
+
+  const devolver = (s: ServoNoApostolado) =>
+    Alert.alert(
+      "Voltar ao discipulado?",
+      `${nomeExibido(s)} sai do apostolado e volta para a chamada, a frequência e o quadrante do discipulado. ` +
+        "O histórico continua o mesmo. Se precisar de pasta neste ano, reimporte as pastas.",
+      [
+        { text: "Cancelar", style: "cancel" },
         {
-          text: "Gravar",
+          text: "Voltar ao discipulado",
+          style: "destructive",
           onPress: async () => {
             setGravando(true);
             try {
-              const r = await marcarSubidaApostolado(ano, escolhidos.map((s) => s.id));
-              Alert.alert("Gravado", r.message);
+              const r = await voltarAoDiscipulado(s.id);
+              Alert.alert("Pronto", r.message);
               await carregar(ano);
             } catch (err: any) {
-              Alert.alert("Não foi possível gravar", err?.message || "Tente novamente.");
+              Alert.alert("Não foi possível desfazer", err?.message || "Tente novamente.");
             } finally {
               setGravando(false);
             }
@@ -96,7 +145,6 @@ export default function SubirApostoladoScreen() {
         },
       ]
     );
-  };
 
   return (
     <SafeAreaView style={base.safeArea}>
@@ -113,19 +161,22 @@ export default function SubirApostoladoScreen() {
       ) : (
         <ScrollView contentContainerStyle={base.container} keyboardShouldPersistTaps="handled">
           <Text style={base.texto}>
-            Marque quem sobe para o apostolado. Essas pessoas saem da chamada, da frequência e do quadrante do
-            discipulado e passam a ver só a área do apostolado. Ficar sem pasta do discipulado não as inativa.
+            Marque quem foi convidado para subir ao apostolado em {anoAtual + 1}. Em 1º de janeiro essas pessoas saem
+            da chamada, da frequência e do quadrante do discipulado e passam a ver só a área do apostolado. Ficar sem
+            pasta do discipulado não as inativa.
           </Text>
 
-          <View style={base.anos}>
-            {[anoAtual, anoAtual + 1].map((a) => (
-              <TouchableOpacity key={a} style={[base.ano, ano === a && base.anoAtivo]}
-                                onPress={() => setAno(a)} disabled={gravando}>
-                <Text style={[base.anoText, ano === a && base.anoTextAtivo]}>{a}</Text>
-                <Text style={base.anoSub}>{a === anoAtual ? "vale na hora" : "vale em janeiro"}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {(dados?.anos_permitidos.length ?? 0) > 1 && (
+            <View style={base.anos}>
+              {dados!.anos_permitidos.map((a) => (
+                <TouchableOpacity key={a} style={[base.ano, ano === a && base.anoAtivo]}
+                                  onPress={() => setAno(a)} disabled={gravando}>
+                  <Text style={[base.anoText, ano === a && base.anoTextAtivo]}>{a}</Text>
+                  <Text style={base.anoSub}>{a === anoAtual ? "correção: vale na hora" : "vale em janeiro"}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {dados === null ? (
             <ActivityIndicator size="large" color={Cores.primaria} style={{ marginTop: 24 }} />
@@ -168,7 +219,20 @@ export default function SubirApostoladoScreen() {
               {dados.no_apostolado.length > 0 && (
                 <View style={[base.caixa, styles.jaNoApostolado]}>
                   <Text style={[base.caixaTitulo, styles.jaTexto]}>Já no apostolado ({dados.no_apostolado.length})</Text>
-                  <Text style={styles.jaTexto}>{dados.no_apostolado.join(", ")}</Text>
+                  {dados.no_apostolado.map((s) => (
+                    <View key={s.id} style={styles.jaLinha}>
+                      <NomeComApelido nome={s.nome} apelido={s.apelido} style={[styles.jaTexto, styles.jaNome]} />
+                      <TouchableOpacity
+                        style={styles.botaoVoltar}
+                        onPress={() => devolver(s)}
+                        disabled={gravando}
+                        accessibilityLabel={`Voltar ${nomeExibido(s)} ao discipulado`}
+                      >
+                        <Ionicons name="arrow-undo" size={14} color={VERMELHO_APOSTOLADO} />
+                        <Text style={styles.botaoVoltarTexto}>Voltar ao discipulado</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
 
@@ -227,6 +291,31 @@ const styles = StyleSheet.create({
   jaTexto: {
     color: VERMELHO_APOSTOLADO,
     fontSize: 13,
+  },
+  jaLinha: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingVertical: 6,
+  },
+  jaNome: {
+    flex: 1,
+  },
+  botaoVoltar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: VERMELHO_APOSTOLADO,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  botaoVoltarTexto: {
+    color: VERMELHO_APOSTOLADO,
+    fontSize: 12,
+    fontWeight: "600",
   },
   botaoGravar: {
     backgroundColor: VERMELHO_APOSTOLADO,

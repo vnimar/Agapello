@@ -7,7 +7,7 @@ import psycopg2
 import psycopg2.extras
 from ..schemas.servo_schema import (
     ExcluirServos, InativoParaRevisao, MarcarApostolado, ServoDadosUpdate, ServoDetail, ServoListItem,
-    ServoParaApostolado, ServoStatusUpdate, SubidaApostolado,
+    ServoNoApostolado, ServoParaApostolado, ServoStatusUpdate, SubidaApostolado,
 )
 from ..schemas.auth_schema import UsuarioLogado
 from ..config.security import (
@@ -182,19 +182,33 @@ def excluir_servos(body: ExcluirServos):
 #
 # O convite é feito durante um ano para o seguinte, e só pode ser convidado quem
 # tem 3 anos completos de Ágape (1 como cursista + 2 como servo) no momento do
-# convite: para subir em X, ano de ingresso até X - 4. O app só avisa.
+# convite: para subir em X, ano de ingresso até X - 4. Exceções acontecem, então
+# quem não tem os 3 anos pode subir, mas só com uma segunda confirmação.
+#
+# A subida é sempre para o ano seguinte (vale na virada). O ano atual, que vale
+# na hora, só aparece em janeiro, para corrigir quem ficou de fora na virada.
+# Quem subiu por engano volta pelo POST /apostolado/{id}/voltar (só administrador).
 
-def _anos_da_subida() -> tuple[int, int]:
-    ano_atual = date.today().year
-    return ano_atual, ano_atual + 1
+def _hoje() -> date:
+    return date.today()
+
+
+def _anos_da_subida() -> list[int]:
+    hoje = _hoje()
+    return [hoje.year, hoje.year + 1] if hoje.month == 1 else [hoje.year + 1]
+
+
+def _elegivel(ano_ingresso: Optional[int], ano: int) -> bool:
+    return bool(ano_ingresso and 0 < ano_ingresso <= ano - 4)
 
 
 @router.get("/apostolado", response_model=SubidaApostolado, dependencies=[Depends(require_admin)])
 def listar_subida_apostolado(ano: Optional[int] = None):
     """Servos ativos do discipulado, com quem já está marcado para subir em `ano`."""
-    ano = ano or _anos_da_subida()[1]
-    if ano not in _anos_da_subida():
-        raise HTTPException(status_code=422, detail="Só dá para marcar a subida do ano atual ou do seguinte.")
+    anos = _anos_da_subida()
+    ano = ano or anos[-1]
+    if ano not in anos:
+        raise HTTPException(status_code=422, detail="Só dá para marcar a subida do ano seguinte.")
     try:
         with get_connection() as conn, conn.cursor() as cursor:
             cursor.execute("""
@@ -205,21 +219,23 @@ def listar_subida_apostolado(ano: Optional[int] = None):
             """, (ano,))
             servos = cursor.fetchall()
             cursor.execute("""
-                SELECT COALESCE(apelido, nome) FROM servo
-                WHERE area = 'apostolado' AND status = 'Ativo' ORDER BY 1
+                SELECT id_servo, nome, apelido FROM servo
+                WHERE area = 'apostolado' AND status = 'Ativo'
+                ORDER BY COALESCE(apelido, nome), nome
             """)
-            no_apostolado = [n for (n,) in cursor.fetchall()]
+            no_apostolado = cursor.fetchall()
     except Exception as e:
         logger.error(f"Erro ao listar a subida para o apostolado: {e}")
         raise HTTPException(status_code=500, detail="Erro interno.")
 
     return SubidaApostolado(
         ano=ano,
+        anos_permitidos=anos,
         servos=[ServoParaApostolado(
             id=i, nome=n, apelido=a, ano_ingresso=ing,
-            elegivel=bool(ing and 0 < ing <= ano - 4), marcado=bool(m),
+            elegivel=_elegivel(ing, ano), marcado=bool(m),
         ) for i, n, a, ing, m in servos],
-        no_apostolado=no_apostolado,
+        no_apostolado=[ServoNoApostolado(id=i, nome=n, apelido=a) for i, n, a in no_apostolado],
     )
 
 
@@ -227,20 +243,28 @@ def listar_subida_apostolado(ano: Optional[int] = None):
 def marcar_subida_apostolado(body: MarcarApostolado):
     """
     Grava quem sobe em `ano` (substitui a marcação desse ano). Ano seguinte:
-    vale na virada de 1º de janeiro. Ano atual: vale na hora.
+    vale na virada de 1º de janeiro. Ano atual (só em janeiro): vale na hora.
     """
-    ano_atual, ano_seguinte = _anos_da_subida()
-    if body.ano not in (ano_atual, ano_seguinte):
-        raise HTTPException(status_code=422, detail="Só dá para marcar a subida do ano atual ou do seguinte.")
+    if body.ano not in _anos_da_subida():
+        raise HTTPException(status_code=422, detail="Só dá para marcar a subida do ano seguinte.")
+    ano_atual = _hoje().year
     ids = sorted(set(body.ids))
     try:
         with get_connection() as conn, conn.cursor() as cursor:
             cursor.execute("""
-                SELECT count(*) FROM servo
+                SELECT COALESCE(apelido, nome), ano_ingresso FROM servo
                 WHERE id_servo = ANY(%s) AND status = 'Ativo' AND area = 'discipulado'
             """, (ids,))
-            if cursor.fetchone()[0] != len(ids):
+            encontrados = cursor.fetchall()
+            if len(encontrados) != len(ids):
                 raise HTTPException(status_code=400, detail="Só servos ativos do discipulado podem subir.")
+
+            sem_tempo = sorted(n for n, ing in encontrados if not _elegivel(ing, body.ano))
+            if sem_tempo and not body.confirmar_excecao:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Sem os 3 anos completos (precisa confirmar a exceção): " + ", ".join(sem_tempo),
+                )
 
             cursor.execute("UPDATE servo SET sobe_apostolado_em = NULL WHERE sobe_apostolado_em = %s", (body.ano,))
             cursor.execute("UPDATE servo SET sobe_apostolado_em = %s WHERE id_servo = ANY(%s)", (body.ano, ids))
@@ -261,6 +285,29 @@ def marcar_subida_apostolado(body: MarcarApostolado):
     plural = "s" if total > 1 else ""
     return {"message": f"{total} servo{plural} sobe{'m' if total > 1 else ''} para o apostolado {quando}.",
             "marcados": total}
+
+
+@router.post("/apostolado/{servo_id}/voltar", dependencies=[Depends(require_admin)])
+def voltar_ao_discipulado(servo_id: int):
+    """
+    Desfaz a subida: quem está no apostolado volta a ser servo ativo do
+    discipulado (chamada, frequência e quadrante). O histórico nunca foi apagado.
+    """
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("""
+                UPDATE servo SET area = 'discipulado', sobe_apostolado_em = NULL
+                WHERE id_servo = %s AND area = 'apostolado' AND status = 'Ativo'
+                RETURNING COALESCE(apelido, nome)
+            """, (servo_id,))
+            linha = cursor.fetchone()
+    except Exception as e:
+        logger.error(f"Erro ao devolver servo {servo_id} ao discipulado: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    if not linha:
+        raise HTTPException(status_code=404, detail="Servo não encontrado no apostolado.")
+    return {"message": f"{linha[0]} voltou para o discipulado."}
 
 
 @router.get("/{servo_id}", response_model=ServoDetail)

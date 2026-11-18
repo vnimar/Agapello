@@ -28,8 +28,24 @@ def id_do_servo(nome):
         return cursor.fetchone()[0]
 
 
-def marcar(client, headers, ids, ano=ANO, login="admin"):
-    return client.put("/servos/apostolado", headers=headers(login), json={"ano": ano, "ids": ids})
+def marcar(client, headers, ids, ano=ANO, login="admin", confirmar_excecao=True):
+    return client.put("/servos/apostolado", headers=headers(login),
+                      json={"ano": ano, "ids": ids, "confirmar_excecao": confirmar_excecao})
+
+
+@pytest.fixture
+def janeiro(monkeypatch):
+    """Finge que hoje é janeiro do ano atual: só aí o ano atual (vale na hora) é aceito."""
+    from resources.routers import servos_router
+    monkeypatch.setattr(servos_router, "_hoje", lambda: date(ANO - 1, 1, 15))
+
+
+def sem_os_3_anos(nome):
+    """Deixa o servo com ingresso recente (sem os 3 anos para subir em ANO)."""
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("UPDATE servo SET ano_ingresso = %s WHERE nome = %s RETURNING id_servo, ano_ingresso",
+                       (ANO - 2, nome))
+        return cursor.fetchone()
 
 
 def test_marcar_para_o_ano_seguinte_so_vale_na_virada(client, headers):
@@ -97,7 +113,7 @@ def test_virada_sobe_e_nao_inativa(client, headers):
         releaseConnection(conn)
 
 
-def test_marcar_o_ano_atual_vale_na_hora(client, headers):
+def test_marcar_o_ano_atual_vale_na_hora(client, headers, janeiro):
     servo3 = id_do_servo("Teste Servo 3")
     resposta = marcar(client, headers, [servo3], ano=ANO - 1)
     assert "agora" in resposta.json()["message"]
@@ -109,7 +125,7 @@ def test_marcar_o_ano_atual_vale_na_hora(client, headers):
     assert servo3 not in [s["id"] for s in quadrante["servos"]]
 
 
-def test_quem_esta_no_apostolado_nao_ve_o_discipulado(client, headers, usuarios):
+def test_quem_esta_no_apostolado_nao_ve_o_discipulado(client, headers, usuarios, janeiro):
     marcar(client, headers, [usuarios["servo"][1]], ano=ANO - 1)
 
     me = client.get("/auth/me", headers=headers("servo"))
@@ -118,3 +134,49 @@ def test_quem_esta_no_apostolado_nao_ve_o_discipulado(client, headers, usuarios)
         resposta = client.get(rota, headers=headers("servo"))
         assert resposta.status_code == 403, rota
         assert "apostolado" in resposta.json()["detail"]
+
+
+def test_ano_atual_so_em_janeiro(client, headers, monkeypatch):
+    from resources.routers import servos_router
+    monkeypatch.setattr(servos_router, "_hoje", lambda: date(ANO - 1, 11, 18))
+    assert marcar(client, headers, [id_do_servo("Teste Servo 3")], ano=ANO - 1).status_code == 422
+    assert client.get(f"/servos/apostolado?ano={ANO - 1}", headers=headers("admin")).status_code == 422
+    assert client.get("/servos/apostolado", headers=headers("admin")).json()["anos_permitidos"] == [ANO]
+
+
+def test_sem_os_3_anos_precisa_confirmar_a_excecao(client, headers):
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT ano_ingresso FROM servo WHERE nome = 'Teste Servo 3'")
+        ingresso_original = cursor.fetchone()[0]
+    try:
+        servo3, _ = sem_os_3_anos("Teste Servo 3")
+        resposta = marcar(client, headers, [servo3], confirmar_excecao=False)
+        assert resposta.status_code == 409
+        assert "exceção" in resposta.json()["detail"]
+        lista = client.get("/servos/apostolado", headers=headers("admin")).json()
+        assert not [s for s in lista["servos"] if s["marcado"]]  # nada gravado
+
+        assert marcar(client, headers, [servo3], confirmar_excecao=True).status_code == 200
+    finally:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("UPDATE servo SET ano_ingresso = %s WHERE nome = 'Teste Servo 3'", (ingresso_original,))
+
+
+def test_administrador_devolve_ao_discipulado(client, headers, janeiro):
+    servo3 = id_do_servo("Teste Servo 3")
+    marcar(client, headers, [servo3], ano=ANO - 1)
+    no_apostolado = client.get("/servos/apostolado", headers=headers("admin")).json()["no_apostolado"]
+    assert servo3 in [s["id"] for s in no_apostolado]
+
+    assert client.post(f"/servos/apostolado/{servo3}/voltar", headers=headers("coordgeral")).status_code == 403
+    resposta = client.post(f"/servos/apostolado/{servo3}/voltar", headers=headers("admin"))
+    assert resposta.status_code == 200, resposta.text
+    assert "voltou para o discipulado" in resposta.json()["message"]
+
+    status = {s["id"]: s["status"] for s in client.get("/servos/", headers=headers("admin")).json()}
+    assert status[servo3] == "Ativo"
+    resumo = client.get("/frequencia/servos", headers=headers("formacao")).json()["data"]
+    assert servo3 in [r["id_servo"] for r in resumo]
+
+    # De novo: já não está no apostolado
+    assert client.post(f"/servos/apostolado/{servo3}/voltar", headers=headers("admin")).status_code == 404

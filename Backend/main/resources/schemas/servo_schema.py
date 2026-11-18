@@ -94,14 +94,21 @@ class ServoParaApostolado(BaseModel):
     elegivel: bool        # 3 anos completos no convite (o app só avisa)
     marcado: bool         # já marcado para subir no ano
 
+class ServoNoApostolado(BaseModel):
+    id: int
+    nome: str
+    apelido: Optional[str] = None
+
 class SubidaApostolado(BaseModel):
     ano: int
+    anos_permitidos: list[int]               # o seguinte; o atual só em janeiro (correção)
     servos: list[ServoParaApostolado]
-    no_apostolado: list[str]  # quem já está no apostolado
+    no_apostolado: list[ServoNoApostolado]   # quem já está no apostolado
 
 class MarcarApostolado(BaseModel):
     ano: int
     ids: list[int]
+    confirmar_excecao: bool = False  # segunda confirmação para quem não tem os 3 anos
 
 # ── Minha conta: o próprio servo ─────────────────────────────────────────────
 

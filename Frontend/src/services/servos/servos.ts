@@ -81,19 +81,34 @@ export interface ServoParaApostolado {
   marcado: boolean;  // já marcado para subir no ano
 }
 
+export interface ServoNoApostolado {
+  id: number;
+  nome: string;
+  apelido: string | null;
+}
+
 export interface SubidaApostolado {
   ano: number;
+  anos_permitidos: number[]; // o seguinte; o atual só em janeiro
   servos: ServoParaApostolado[];
-  no_apostolado: string[];
+  no_apostolado: ServoNoApostolado[];
 }
 
-export function getSubidaApostolado(ano: number): Promise<SubidaApostolado> {
-  return apiRequest(`/servos/apostolado?ano=${ano}`);
+export function getSubidaApostolado(ano?: number): Promise<SubidaApostolado> {
+  return apiRequest(ano ? `/servos/apostolado?ano=${ano}` : "/servos/apostolado");
 }
 
-export function marcarSubidaApostolado(ano: number, ids: number[]): Promise<{ message: string; marcados: number }> {
+export function voltarAoDiscipulado(id: number): Promise<{ message: string }> {
+  return apiRequest(`/servos/apostolado/${id}/voltar`, { method: "POST" });
+}
+
+export function marcarSubidaApostolado(
+  ano: number,
+  ids: number[],
+  confirmarExcecao = false
+): Promise<{ message: string; marcados: number }> {
   return apiRequest("/servos/apostolado", {
     method: "PUT",
-    body: JSON.stringify({ ano, ids }),
+    body: JSON.stringify({ ano, ids, confirmar_excecao: confirmarExcecao }),
   });
 }
