@@ -6,6 +6,7 @@ import psycopg2.extras
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..bd.db import get_connection
+from ..config.rate_limit import limitador_login
 from ..config.security import hash_senha, require_admin
 from ..schemas.auth_schema import UsuarioLogado
 from ..schemas.usuario_schema import (
@@ -166,6 +167,8 @@ def editar_usuario(
 # ── POST /usuarios/{id}/resetar-senha ─────────────────────────────────────────
 #
 # Para quem esqueceu a senha: gera uma temporária, que a pessoa troca ao entrar.
+# Também desconecta os outros aparelhos (versao_sessao), apaga códigos de
+# recuperação pendentes e tira o bloqueio de senha errada.
 
 @router.post("/{id_usuario}/resetar-senha", response_model=SenhaTemporariaResponse)
 def resetar_senha(id_usuario: int):
@@ -174,12 +177,17 @@ def resetar_senha(id_usuario: int):
     try:
         with get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(
-                "UPDATE usuario SET senha_hash = %s, trocar_senha = true WHERE id_usuario = %s",
+                """UPDATE usuario SET senha_hash = %s, trocar_senha = true,
+                                      versao_sessao = versao_sessao + 1
+                   WHERE id_usuario = %s RETURNING email""",
                 (hash_senha(senha), id_usuario)
             )
-            if cursor.rowcount == 0:
+            linha = cursor.fetchone()
+            if not linha:
                 raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+            cursor.execute("DELETE FROM recuperacao_senha WHERE id_usuario = %s", (id_usuario,))
             usuario = _buscar(cursor, id_usuario)
+        limitador_login.limpar_email(linha["email"])
 
     except HTTPException:
         raise

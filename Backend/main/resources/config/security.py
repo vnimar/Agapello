@@ -81,9 +81,10 @@ HASH_FALSO = hash_senha("usuario-inexistente")
 
 # ── Token JWT ─────────────────────────────────────────────────────────────────
 #
-# O token guarda só o id do usuário e a expiração. Perfil, nome e status são
+# O token guarda o id do usuário, a expiração e a versão da sessão (sv). Perfil, nome e status são
 # lidos do banco a cada requisição: se alguém for inativado ou mudar de perfil,
-# vale na hora, sem esperar o token vencer.
+# vale na hora, sem esperar o token vencer. Redefinir a senha sobe a
+# usuario.versao_sessao e derruba os tokens antigos (tokens sem "sv" = versão 0).
 
 def _exigir_secret() -> str:
     if not JWT_SECRET:
@@ -94,15 +95,16 @@ def _exigir_secret() -> str:
     return JWT_SECRET
 
 
-def gerar_token(id_usuario: int) -> str:
+def gerar_token(id_usuario: int, versao_sessao: int = 0) -> str:
     """Gera um JWT para o usuário, válido por JWT_EXPIRES_DAYS dias."""
     expiracao = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRES_DAYS)
-    payload = {"sub": str(id_usuario), "exp": expiracao}
+    payload = {"sub": str(id_usuario), "sv": versao_sessao, "exp": expiracao}
     return jwt.encode(payload, _exigir_secret(), algorithm=JWT_ALGORITHM)
 
 
-def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
+def buscar_usuario_ativo(id_usuario: int, versao_sessao: Optional[int] = None) -> Optional[UsuarioLogado]:
     """
+    Com versao_sessao (vinda do token), o token só vale se for da versão atual.
     Usuário com acesso liberado: login ativo e, se ligado a um servo, servo Ativo.
     Os perfis somam o perfil manual (usuario.perfil) com os das pastas do ano
     vigente (vw_perfis_pasta) — trocou de pasta, o acesso muda na hora.
@@ -119,7 +121,8 @@ def buscar_usuario_ativo(id_usuario: int) -> Optional[UsuarioLogado]:
                 WHERE u.id_usuario = %s
                   AND u.ativo
                   AND (u.id_servo IS NULL OR s.status = 'Ativo')
-            """, (id_usuario,))
+                  AND (%s IS NULL OR u.versao_sessao = %s)
+            """, (id_usuario, versao_sessao, versao_sessao))
             row = cursor.fetchone()
 
     if not row:
@@ -159,10 +162,11 @@ def get_optional_user(
     try:
         payload = jwt.decode(credenciais.credentials, _exigir_secret(), algorithms=[JWT_ALGORITHM])
         id_usuario = int(payload["sub"])
-    except (JWTError, KeyError, ValueError):
+        versao_sessao = int(payload.get("sv", 0))
+    except (JWTError, KeyError, ValueError, TypeError):
         raise _credenciais_invalidas
 
-    usuario = buscar_usuario_ativo(id_usuario)
+    usuario = buscar_usuario_ativo(id_usuario, versao_sessao)
     if not usuario:
         raise _credenciais_invalidas
     request.state.usuario = usuario

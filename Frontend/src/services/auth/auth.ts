@@ -87,6 +87,24 @@ export function login(email: string, senha: string) {
   );
 }
 
+export type RespostaLogin = { access_token: string; expira_em_dias: number; usuario: Usuario };
+
+/** Esqueci a senha: manda um código para o email (a resposta é a mesma, tenha conta ou não). */
+export function pedirCodigoRecuperacao(email: string) {
+  return apiRequest<{ mensagem: string; validade_minutos: number }>("/auth/recuperar-senha", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** Troca a senha com o código do email e já devolve o login. */
+export function redefinirSenhaComCodigo(email: string, codigo: string, senha_nova: string) {
+  return apiRequest<RespostaLogin>("/auth/redefinir-senha", {
+    method: "POST",
+    body: JSON.stringify({ email, codigo, senha_nova }),
+  });
+}
+
 export function buscarUsuarioLogado() {
   return apiRequest<Usuario>("/auth/me");
 }

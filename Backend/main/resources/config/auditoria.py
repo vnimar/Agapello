@@ -21,12 +21,12 @@ METODOS_AUDITADOS = {"POST", "PUT", "PATCH", "DELETE"}
 
 # Campos que nunca vão para o log (comparação sem maiúsculas, por trecho do nome)
 # Dados pessoais também: o log mostra quem alterou, não o conteúdo
-CAMPOS_SENSIVEIS = ("senha", "password", "token", "pin", "secret", "telefone", "endereco", "nascimento")
+CAMPOS_SENSIVEIS = ("senha", "password", "token", "pin", "secret", "codigo", "telefone", "endereco", "nascimento")
 
 LIMITE_CORPO = 500  # caracteres do corpo no log; importações grandes são cortadas
 
 # Não é alteração de dados: fica só no log do Render
-ROTAS_FORA_DO_HISTORICO = ("/auth/login",)
+ROTAS_FORA_DO_HISTORICO = ("/auth/login", "/auth/recuperar-senha")
 DIAS_GUARDADOS = 365
 _ultima_limpeza: dict[str, date] = {}
 

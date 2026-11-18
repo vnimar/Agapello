@@ -9,6 +9,8 @@ import {
   temPerfil,
   buscarLoginObrigatorio,
   login as loginApi,
+  redefinirSenhaComCodigo,
+  RespostaLogin,
   buscarUsuarioLogado,
   lerTokenSalvo,
   salvarToken,
@@ -29,6 +31,7 @@ interface AuthContextValue {
   cuidaDosServos: boolean;    // pode ver a lista de servos e fazer a chamada
   cuidaDosCursistas: boolean; // faz a chamada de cursistas
   entrar: (email: string, senha: string) => Promise<void>;
+  redefinirSenha: (email: string, codigo: string, senhaNova: string) => Promise<void>;  // esqueci a senha
   sair: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;  // ex.: depois de trocar a senha
 }
@@ -98,13 +101,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const entrar = useCallback(async (email: string, senha: string) => {
-    const resposta = await loginApi(email.trim().toLowerCase(), senha);
+  const abrirSessao = useCallback(async (resposta: RespostaLogin) => {
     setAuthToken(resposta.access_token);
     await salvarToken(resposta.access_token);
     await SecureStore.setItemAsync(CHAVE_USUARIO, JSON.stringify(resposta.usuario));
     setUsuario(resposta.usuario);
   }, []);
+
+  const entrar = useCallback(async (email: string, senha: string) => {
+    await abrirSessao(await loginApi(email.trim().toLowerCase(), senha));
+  }, [abrirSessao]);
+
+  const redefinirSenha = useCallback(async (email: string, codigo: string, senhaNova: string) => {
+    await abrirSessao(await redefinirSenhaComCodigo(email.trim().toLowerCase(), codigo, senhaNova));
+  }, [abrirSessao]);
 
   const recarregarUsuario = useCallback(async () => {
     const atual = await buscarUsuarioLogado();
@@ -121,9 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     cuidaDosServos: usuario ? temPerfil(usuario, PERFIS_COORD_SERVOS) : !loginObrigatorio,
     cuidaDosCursistas: temPerfil(usuario, PERFIS_CURSISTAS),
     entrar,
+    redefinirSenha,
     sair,
     recarregarUsuario,
-  }), [usuario, carregando, loginObrigatorio, entrar, sair, recarregarUsuario]);
+  }), [usuario, carregando, loginObrigatorio, entrar, redefinirSenha, sair, recarregarUsuario]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

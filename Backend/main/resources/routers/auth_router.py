@@ -1,6 +1,11 @@
+import hashlib
+import hmac
 import logging
+import secrets
+from html import escape
+
 import psycopg2.extras
-from fastapi import APIRouter, HTTPException, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request, Response, status
 
 from ..bd.db import get_connection
 from ..schemas.servo_schema import MeuResumo, MinhaFrequencia, MeuFoguinho
@@ -8,6 +13,8 @@ from ..schemas.auth_schema import (
     LoginRequest,
     RegisterRequest,
     TrocarSenhaRequest,
+    RecuperarSenhaRequest,
+    RedefinirSenhaRequest,
     TokenResponse,
     UsuarioLogado,
 )
@@ -22,16 +29,19 @@ from ..config.security import (
     buscar_usuario_ativo,
 )
 from ..config import security
-from ..config.rate_limit import LimitadorTentativas, ip_do_cliente
+from ..config.email import enviar_email
+from ..config.rate_limit import (
+    ip_do_cliente,
+    limitador_login,
+    limitador_pedido_email,
+    limitador_recuperacao_ip,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-_limitador_login = LimitadorTentativas(
-    "Muitas tentativas com senha errada. Por segurança, o login deste email "
-    "fica bloqueado por {minutos}, mesmo com a senha certa."
-)
+_limitador_login = limitador_login
 
 # ── POST /auth/login ──────────────────────────────────────────────────────────
 #
@@ -57,7 +67,8 @@ def login(body: LoginRequest, request: Request):
             with conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT u.id_usuario, u.senha_hash,
-                           u.ativo AND (u.id_servo IS NULL OR s.status = 'Ativo') AS liberado
+                           u.ativo AND (u.id_servo IS NULL OR s.status = 'Ativo') AS liberado,
+                           u.versao_sessao
                     FROM usuario u
                     LEFT JOIN servo s ON s.id_servo = u.id_servo
                     WHERE lower(u.email) = %s
@@ -85,10 +96,15 @@ def login(body: LoginRequest, request: Request):
         )
 
     _limitador_login.limpar(chave)
-    token = gerar_token(usuario[0])
+    return _resposta_login(usuario[0], usuario[3])
+
+
+def _resposta_login(id_usuario: int, versao_sessao: int) -> TokenResponse:
+    """Token + usuário logado; usado pelo login e pela redefinição de senha."""
+    token = gerar_token(id_usuario, versao_sessao)
 
     # Mesmo cálculo de perfis do /auth/me (perfil manual + pastas do ano)
-    logado = buscar_usuario_ativo(usuario[0])
+    logado = buscar_usuario_ativo(id_usuario)
     if not logado:
         raise HTTPException(status_code=500, detail="Erro interno.")
 
@@ -97,7 +113,7 @@ def login(body: LoginRequest, request: Request):
             with conn.cursor() as cursor:
                 cursor.execute(
                     "UPDATE usuario SET ultimo_login = now() WHERE id_usuario = %s",
-                    (usuario[0],)
+                    (id_usuario,)
                 )
     except Exception as e:
         # Não impede o login
@@ -108,6 +124,147 @@ def login(body: LoginRequest, request: Request):
         expira_em_dias=JWT_EXPIRES_DAYS,
         usuario=logado,
     )
+
+
+# ── Recuperação de senha pelo email ───────────────────────────────────────────
+#
+# 1. POST /auth/recuperar-senha {email}: se o email for de uma conta com acesso
+#    liberado, manda um código de 6 números que vale CODIGO_MINUTOS. A resposta
+#    é sempre a mesma (não revela quais emails têm conta) e o envio roda em
+#    segundo plano (o tempo de resposta também não revela).
+# 2. POST /auth/redefinir-senha {email, codigo, senha_nova}: confere o código,
+#    troca a senha, desconecta os outros aparelhos e já devolve o login.
+#
+# O banco guarda só o HMAC do código. Cada código aceita CODIGO_TENTATIVAS erros;
+# pedir um novo apaga os anteriores.
+
+CODIGO_MINUTOS = 15
+CODIGO_TENTATIVAS = 5
+
+_MENSAGEM_ENVIADO = (
+    "Se este email tiver conta no Agapello, enviamos um código para ele. "
+    "Confira a caixa de entrada e o spam."
+)
+_CODIGO_INVALIDO = "Código incorreto ou vencido. Confira o último email recebido ou peça um novo código."
+
+
+def _hash_codigo(id_usuario: int, codigo: str) -> str:
+    chave = (security.JWT_SECRET or "").encode("utf-8")
+    return hmac.new(chave, f"{id_usuario}:{codigo}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _enviar_codigo(email: str) -> None:
+    """Roda depois da resposta. Falhas ficam só no log."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT u.id_usuario, u.nome, s.apelido
+                    FROM usuario u
+                    LEFT JOIN servo s ON s.id_servo = u.id_servo
+                    WHERE lower(u.email) = %s
+                      AND u.ativo AND (u.id_servo IS NULL OR s.status = 'Ativo')
+                """, (email,))
+                usuario = cursor.fetchone()
+                if not usuario:
+                    return
+
+                codigo = f"{secrets.randbelow(10**6):06d}"
+                cursor.execute("DELETE FROM recuperacao_senha WHERE id_usuario = %s", (usuario[0],))
+                cursor.execute("""
+                    INSERT INTO recuperacao_senha (id_usuario, codigo_hash, expira_em)
+                    VALUES (%s, %s, now() + make_interval(mins => %s))
+                """, (usuario[0], _hash_codigo(usuario[0], codigo), CODIGO_MINUTOS))
+    except Exception as e:
+        logger.error(f"Erro ao gerar código de recuperação: {e}")
+        return
+
+    nome = usuario[2] or usuario[1].split()[0]
+    texto = (
+        f"Olá, {nome}!\n\n"
+        f"Seu código para criar uma nova senha no Agapello é: {codigo}\n\n"
+        f"Ele vale por {CODIGO_MINUTOS} minutos. Se não foi você que pediu, ignore este "
+        f"email: sua senha continua a mesma."
+    )
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;color:#222">
+      <p>Olá, {escape(nome)}!</p>
+      <p>Seu código para criar uma nova senha no <b>Agapello</b> é:</p>
+      <p style="font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;margin:24px 0">{codigo}</p>
+      <p>Ele vale por {CODIGO_MINUTOS} minutos.</p>
+      <p style="color:#666;font-size:13px">Se não foi você que pediu, ignore este email: sua senha continua a mesma.</p>
+    </div>"""
+    if not enviar_email(email, usuario[1], f"Agapello: seu código é {codigo}", texto, html):
+        logger.error(f"Código de recuperação do usuário #{usuario[0]} não foi enviado.")
+
+
+@router.post("/recuperar-senha")
+def recuperar_senha(body: RecuperarSenhaRequest, request: Request, tarefas: BackgroundTasks):
+    email = body.email.lower()
+    ip = ip_do_cliente(request)
+    limitador_recuperacao_ip.verificar(ip)
+    limitador_pedido_email.verificar(email)
+    # Conta todo pedido, exista o email ou não (para não revelar nada)
+    limitador_recuperacao_ip.registrar_falha(ip)
+    limitador_pedido_email.registrar_falha(email)
+
+    tarefas.add_task(_enviar_codigo, email)
+    return {"mensagem": _MENSAGEM_ENVIADO, "validade_minutos": CODIGO_MINUTOS}
+
+
+@router.post("/redefinir-senha", response_model=TokenResponse)
+def redefinir_senha(body: RedefinirSenhaRequest, request: Request):
+    email = body.email.lower()
+    ip = ip_do_cliente(request)
+    limitador_recuperacao_ip.verificar(ip)
+
+    valido = False
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT r.id_recuperacao, r.codigo_hash, r.tentativas, u.id_usuario
+                    FROM recuperacao_senha r
+                    JOIN usuario u ON u.id_usuario = r.id_usuario
+                    LEFT JOIN servo s ON s.id_servo = u.id_servo
+                    WHERE lower(u.email) = %s AND r.expira_em > now()
+                      AND u.ativo AND (u.id_servo IS NULL OR s.status = 'Ativo')
+                    ORDER BY r.criado_em DESC
+                    LIMIT 1
+                    FOR UPDATE OF r
+                """, (email,))
+                pedido = cursor.fetchone()
+
+                if pedido and pedido[2] < CODIGO_TENTATIVAS:
+                    if hmac.compare_digest(pedido[1], _hash_codigo(pedido[3], body.codigo)):
+                        valido = True
+                        cursor.execute("""
+                            UPDATE usuario
+                            SET senha_hash = %s, trocar_senha = false,
+                                versao_sessao = versao_sessao + 1
+                            WHERE id_usuario = %s
+                            RETURNING versao_sessao
+                        """, (hash_senha(body.senha_nova), pedido[3]))
+                        versao = cursor.fetchone()[0]
+                        cursor.execute("DELETE FROM recuperacao_senha WHERE id_usuario = %s", (pedido[3],))
+                    else:
+                        # Gravada de verdade: o erro só sobe depois do commit
+                        cursor.execute(
+                            "UPDATE recuperacao_senha SET tentativas = tentativas + 1 WHERE id_recuperacao = %s",
+                            (pedido[0],)
+                        )
+
+    except Exception as e:
+        logger.error(f"Erro ao redefinir senha: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    if not valido:
+        limitador_recuperacao_ip.registrar_falha(ip)
+        raise HTTPException(status_code=400, detail=_CODIGO_INVALIDO)
+
+    # Senha nova: some o bloqueio de senha errada em qualquer aparelho
+    limitador_login.limpar_email(email)
+    return _resposta_login(pedido[3], versao)
 
 
 # ── GET /auth/config ──────────────────────────────────────────────────────────

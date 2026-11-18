@@ -129,6 +129,13 @@ export const authStyles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.6,
   },
+  link: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Cores.primaria,
+    textAlign: "center",
+    marginTop: 20,
+  },
   dica: {
     fontSize: 13,
     color: Cores.textoSuave,

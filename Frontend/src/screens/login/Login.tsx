@@ -128,7 +128,12 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.dica}>Esqueceu a senha? Fale com a coordenação.</Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: "/recuperar-senha", params: { email: email.trim() } })}
+            hitSlop={8}
+          >
+            <Text style={styles.link}>Esqueci minha senha</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

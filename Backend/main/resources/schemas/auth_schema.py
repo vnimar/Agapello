@@ -60,6 +60,16 @@ class TrocarSenhaRequest(BaseModel):
 
     _senha = field_validator("senha_nova")(_validar_senha)
 
+class RecuperarSenhaRequest(BaseModel):
+    email: EmailStr
+
+class RedefinirSenhaRequest(BaseModel):
+    email: EmailStr
+    codigo: str = Field(pattern=r"^\d{6}$")
+    senha_nova: str
+
+    _senha = field_validator("senha_nova")(_validar_senha)
+
 # ── Responses ─────────────────────────────────────────────────────────────────
 class UsuarioLogado(BaseModel):
     """Usuário autenticado — sem senha."""
