@@ -23,8 +23,8 @@ import { styles } from "../servo/Servo.style";
 import { chamadaStyles } from "./ChamadaCursistas.styles";
 import NomeComApelido, { nomeExibido, textoDeBusca } from "../../../components/NomeComApelido";
 
-// Lista dos cursistas com a % do ano (formação, encontro e confraternização
-// que contam). Coordenador e tutor veem a própria comunidade; coord. geral e
+// Lista dos cursistas com a % do ano (formação, encontro, Pós-Querigma e
+// confraternização que contam). Coordenador e tutor veem a própria comunidade; coord. geral e
 // administrador, todas.
 
 const getInitials = (nome: string) =>

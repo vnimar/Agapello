@@ -36,6 +36,7 @@ const DESCRICOES: Regra[] = [
   ["PUT", /^\/cursistas\/chamada\/(\d+)/, (m) => `Salvou a chamada de cursistas (missão #${m[1]})`],
   ["POST", /^\/cursistas\/importar/, () => "Importou a planilha de cursistas"],
   ["POST", /^\/cursistas\/excluir/, () => "Removeu cursistas"],
+  ["POST", /^\/cursistas\/frequencia-planilha/, () => "Lançou a frequência de cursistas pela planilha"],
   ["POST", /^\/pastas\/importar/, () => "Importou as pastas"],
   ["POST", /^\/missao\/importar/, () => "Importou o calendário"],
   ["PUT", /^\/missao\/conta-frequencia/, () => "Mudou o que conta na frequência"],
