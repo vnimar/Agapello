@@ -149,6 +149,17 @@ export default function ImportarPastasScreen() {
             if (r.erros.length) {
               setPrevia(r);
               Alert.alert("Nada foi gravado", r.message);
+            } else if (r.servos_sem_pasta.length) {
+              // Quem ficou sem pasta: dá para marcar quem continua ativo (exceção)
+              Alert.alert(
+                "Pastas gravadas",
+                `${r.message}\n\n${r.servos_sem_pasta.length} servo(s) sem pasta ficam inativos na virada. ` +
+                  "Quer marcar quem continua ativo?",
+                [
+                  { text: "Agora não", style: "cancel", onPress: voltar },
+                  { text: "Ver servos sem pasta", onPress: () => router.replace("/servos-sem-pasta") },
+                ]
+              );
             } else {
               Alert.alert("Pastas gravadas", r.message, [{ text: "OK", onPress: voltar }]);
             }
@@ -177,7 +188,8 @@ export default function ImportarPastasScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.texto}>
           Escolha a planilha de distribuição de pastas (.xlsx). Antes de gravar, você confere tudo aqui.
-          Apostolado, Missionária Jovem e quem não é servo ficam de fora.
+          Apostolado, Missionária Jovem e quem não é servo ficam de fora. Depois de gravar, em “Servos sem pasta”
+          você marca quem continua ativo mesmo sem pasta.
         </Text>
 
         <View style={styles.anos}>
@@ -227,6 +239,8 @@ export default function ImportarPastasScreen() {
             <Lista titulo="Cursistas sem pasta: deixam o movimento" nomes={previa.cursistas_sem_pasta}
                    caixa={styles.caixaNeutra} texto={styles.neutroText} />
             <Lista titulo="Servos sem pasta no Pós-Encontro: ficam inativos" nomes={previa.servos_sem_pasta}
+                   caixa={styles.caixaNeutra} texto={styles.neutroText} />
+            <Lista titulo="Sem pasta, mas continuam ativos (exceção)" nomes={previa.continuam_ativos}
                    caixa={styles.caixaNeutra} texto={styles.neutroText} />
             <Lista titulo="Sobem para o apostolado (não ficam inativos)" nomes={previa.sobem_apostolado}
                    caixa={styles.caixaNeutra} texto={styles.neutroText} />

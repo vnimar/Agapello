@@ -6,7 +6,7 @@ from typing import Hashable, Optional
 import psycopg2
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
-from ..bd.db import getConnection, releaseConnection
+from ..bd.db import get_connection, getConnection, releaseConnection
 from ..config.auditoria import fora_do_historico
 from ..config.security import PERFIS_ADMIN, require_perfil
 from ..importacao.pastas_xlsx import MOMENTOS, PlanilhaInvalida, ler_planilha, normalizar
@@ -14,9 +14,12 @@ from ..schemas.auth_schema import UsuarioLogado
 from ..virada import aplicar_virada
 from ..schemas.pasta_schema import (
     EquipeImportada,
+    MarcarExcecoesSemPasta,
     PastaImportada,
     PastaImportResponse,
     PessoaImportada,
+    ServoSemPasta,
+    ServosSemPasta,
 )
 
 logger = logging.getLogger(__name__)
@@ -299,14 +302,18 @@ def importar_pastas(
             # O que a virada do ano vai fazer (ver resources/virada.py)
             tem_pos = "EXISTS (SELECT 1 FROM servo_pasta sp WHERE sp.id_servo = s.id_servo AND sp.ano = %s AND sp.momento = 'pos')"
             cursor.execute(f"""
-                SELECT s.nome, s.apelido, s.sobe_apostolado_em IS NOT DISTINCT FROM %s FROM servo s
+                SELECT s.nome, s.apelido, s.sobe_apostolado_em IS NOT DISTINCT FROM %s, e.motivo FROM servo s
+                LEFT JOIN servo_excecao_sem_pasta e ON e.id_servo = s.id_servo AND e.ano = %s
                 WHERE s.status = 'Ativo' AND s.area = 'discipulado' AND NOT {tem_pos}
                 ORDER BY COALESCE(s.apelido, s.nome), s.nome
-            """, (ano, ano))
+            """, (ano, ano, ano))
             sem_pos = cursor.fetchall()
-            # Quem sobe para o apostolado fica sem pasta do discipulado, mas não sai
-            sobem_apostolado = [com_apelido(n, a) for n, a, sobe in sem_pos if sobe]
-            servos_sem_pasta = [com_apelido(n, a) for n, a, sobe in sem_pos if not sobe]
+            # Quem sobe para o apostolado fica sem pasta do discipulado, mas não sai;
+            # quem tem exceção no ano também continua ativo
+            sobem_apostolado = [com_apelido(n, a) for n, a, sobe, _ in sem_pos if sobe]
+            continuam_ativos = [f"{com_apelido(n, a)}: {motivo}" for n, a, sobe, motivo in sem_pos
+                                if not sobe and motivo]
+            servos_sem_pasta = [com_apelido(n, a) for n, a, sobe, motivo in sem_pos if not sobe and not motivo]
             cursor.execute(f"""
                 SELECT c.nome, c.apelido, COALESCE(s.status = 'Aguardando' AND {tem_pos}, false)
                 FROM cursista c LEFT JOIN servo s ON s.id_servo = c.id_servo
@@ -367,5 +374,95 @@ def importar_pastas(
         ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos, antigos=antigos,
         pastas=resultado, erros=erros, avisos=avisos,
         promovidos=promovidos, cursistas_sem_pasta=cursistas_sem_pasta, servos_sem_pasta=servos_sem_pasta,
-        sobem_apostolado=sobem_apostolado,
+        sobem_apostolado=sobem_apostolado, continuam_ativos=continuam_ativos,
     )
+
+
+# ── Exceção: servo sem pasta que continua ativo ──────────────────────────────
+#
+# Depois de gravar as pastas do ano, quem ficou sem pasta no Pós-Encontro seria
+# inativado na virada. O administrador ou a coordenação geral marca quem continua
+# ativo, com o motivo. Vale só para aquele ano (servo_excecao_sem_pasta, migration 025).
+
+def _anos_permitidos() -> tuple[int, int]:
+    ano_atual = date.today().year
+    return ano_atual, ano_atual + 1
+
+
+@router.get("/sem-pasta", response_model=ServosSemPasta)
+def listar_servos_sem_pasta(ano: Optional[int] = None):
+    """Servos ativos do discipulado sem pasta no Pós-Encontro de `ano`, com a exceção de cada um."""
+    ano = ano or _anos_permitidos()[1]
+    if ano not in _anos_permitidos():
+        raise HTTPException(status_code=422, detail="Só dá para ver o ano atual ou o seguinte.")
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM servo_pasta WHERE ano = %s AND momento = 'pos' LIMIT 1", (ano,))
+            importado = cursor.fetchone() is not None
+            servos = []
+            if importado:
+                cursor.execute("""
+                    SELECT s.id_servo, s.nome, s.apelido, e.motivo FROM servo s
+                    LEFT JOIN servo_excecao_sem_pasta e ON e.id_servo = s.id_servo AND e.ano = %s
+                    WHERE s.status = 'Ativo' AND s.area = 'discipulado'
+                      AND s.sobe_apostolado_em IS DISTINCT FROM %s
+                      AND NOT EXISTS (SELECT 1 FROM servo_pasta sp
+                                      WHERE sp.id_servo = s.id_servo AND sp.ano = %s AND sp.momento = 'pos')
+                    ORDER BY COALESCE(s.apelido, s.nome), s.nome
+                """, (ano, ano, ano))
+                servos = cursor.fetchall()
+    except Exception as e:
+        logger.error(f"Erro ao listar servos sem pasta: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    return ServosSemPasta(
+        ano=ano, anos_permitidos=list(_anos_permitidos()), pastas_importadas=importado,
+        servos=[ServoSemPasta(id=i, nome=n, apelido=a, excecao=motivo is not None, motivo=motivo)
+                for i, n, a, motivo in servos],
+    )
+
+
+@router.put("/sem-pasta")
+def marcar_excecoes_sem_pasta(
+    body: MarcarExcecoesSemPasta,
+    usuario: Optional[UsuarioLogado] = Depends(require_perfil(*PERFIS_ADMIN)),
+):
+    """
+    Grava quem continua ativo sem pasta em `ano` (substitui as exceções desse ano).
+    Cada exceção precisa de motivo. Quem já foi inativado não volta por aqui:
+    reative pela Lista de servos.
+    """
+    if body.ano not in _anos_permitidos():
+        raise HTTPException(status_code=422, detail="Só dá para marcar o ano atual ou o seguinte.")
+    excecoes = {e.id_servo: e.motivo.strip() for e in body.excecoes}
+    if len(excecoes) != len(body.excecoes):
+        raise HTTPException(status_code=422, detail="O mesmo servo veio mais de uma vez.")
+    if any(not m for m in excecoes.values()):
+        raise HTTPException(status_code=422, detail="Escreva o motivo de cada exceção.")
+    try:
+        with get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT id_servo FROM servo
+                WHERE id_servo = ANY(%s) AND status = 'Ativo' AND area = 'discipulado'
+            """, (list(excecoes),))
+            if len(cursor.fetchall()) != len(excecoes):
+                raise HTTPException(status_code=400, detail="Só servos ativos do discipulado podem ter a exceção.")
+            cursor.execute("DELETE FROM servo_excecao_sem_pasta WHERE ano = %s", (body.ano,))
+            for id_servo, motivo in excecoes.items():
+                cursor.execute("""
+                    INSERT INTO servo_excecao_sem_pasta (id_servo, ano, motivo, registrado_por)
+                    VALUES (%s, %s, %s, %s)
+                """, (id_servo, body.ano, motivo, getattr(usuario, "id", None)))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao marcar exceções sem pasta: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno.")
+
+    total = len(excecoes)
+    if not total:
+        return {"message": f"Nenhuma exceção em {body.ano}: quem está sem pasta fica inativo na virada.",
+                "marcados": 0}
+    if total == 1:
+        return {"message": f"1 servo sem pasta continua ativo em {body.ano}.", "marcados": 1}
+    return {"message": f"{total} servos sem pasta continuam ativos em {body.ano}.", "marcados": total}

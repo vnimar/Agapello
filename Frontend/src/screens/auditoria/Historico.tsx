@@ -38,6 +38,7 @@ const DESCRICOES: Regra[] = [
   ["POST", /^\/cursistas\/excluir/, () => "Removeu cursistas"],
   ["POST", /^\/cursistas\/frequencia-planilha/, () => "Lançou a frequência de cursistas pela planilha"],
   ["POST", /^\/pastas\/importar/, () => "Importou as pastas"],
+  ["PUT", /^\/pastas\/sem-pasta/, () => "Marcou exceções de servos sem pasta (continuam ativos)"],
   ["POST", /^\/missao\/importar/, () => "Importou o calendário"],
   ["PUT", /^\/missao\/conta-frequencia/, () => "Mudou o que conta na frequência"],
   ["POST", /^\/missao\/?$/, () => "Criou uma missão"],

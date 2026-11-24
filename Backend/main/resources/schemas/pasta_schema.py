@@ -1,6 +1,6 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 MomentoType = Literal["encontro", "pos"]
 
@@ -44,3 +44,31 @@ class PastaImportResponse(BaseModel):
     cursistas_sem_pasta: list[str] = []  # deixam o movimento
     servos_sem_pasta: list[str] = []     # ficam inativos
     sobem_apostolado: list[str] = []     # marcados para subir: sem pasta, mas não saem
+    continuam_ativos: list[str] = []     # sem pasta, com exceção no ano ("Nome: motivo")
+
+
+# ── Exceção: servo sem pasta que continua ativo ──────────────────────────────
+
+class ServoSemPasta(BaseModel):
+    id: int
+    nome: str
+    apelido: Optional[str] = None
+    excecao: bool = False
+    motivo: Optional[str] = None
+
+
+class ServosSemPasta(BaseModel):
+    ano: int
+    anos_permitidos: list[int]
+    pastas_importadas: bool          # sem pastas do ano no Pós, a lista fica vazia
+    servos: list[ServoSemPasta]
+
+
+class ExcecaoSemPasta(BaseModel):
+    id_servo: int
+    motivo: str = Field(min_length=1, max_length=300)
+
+
+class MarcarExcecoesSemPasta(BaseModel):
+    ano: int
+    excecoes: list[ExcecaoSemPasta]

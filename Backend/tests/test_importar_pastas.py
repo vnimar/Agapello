@@ -417,3 +417,87 @@ def test_virada_sem_pastas_do_ano_nao_faz_nada():
     finally:
         conn.rollback()
         releaseConnection(conn)
+
+
+# ── Exceção: servo sem pasta que continua ativo ───────────────────────────────
+
+@pytest.fixture
+def sem_excecoes():
+    yield
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("DELETE FROM servo_excecao_sem_pasta WHERE ano = %s", (ANO,))
+
+
+def id_do_servo(nome):
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT id_servo FROM servo WHERE nome = %s", (nome,))
+        return cursor.fetchone()[0]
+
+
+def test_excecao_mantem_ativo_na_virada(client, admin, apelido_do_cursista, sem_excecoes):
+    from resources.bd.db import getConnection, releaseConnection
+    from resources.virada import aplicar_virada
+
+    enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS), confirmar=True)
+    lista = client.get(f"/pastas/sem-pasta?ano={ANO}", headers=admin).json()
+    assert lista["pastas_importadas"]
+    assert "Teste Servo 3" in [s["nome"] for s in lista["servos"]]
+    assert "Teste Servo 1" not in [s["nome"] for s in lista["servos"]]  # tem pasta
+
+    servo3 = id_do_servo("Teste Servo 3")
+    r = client.put("/pastas/sem-pasta", headers=admin,
+                   json={"ano": ANO, "excecoes": [{"id_servo": servo3, "motivo": "  Cuidando da mãe  "}]})
+    assert r.status_code == 200, r.text
+    lista = client.get(f"/pastas/sem-pasta?ano={ANO}", headers=admin).json()
+    marcado = next(s for s in lista["servos"] if s["id"] == servo3)
+    assert marcado["excecao"] and marcado["motivo"] == "Cuidando da mãe"
+
+    # A prévia separa quem continua ativo de quem fica inativo
+    corpo = enviar(client, admin, planilha(PLANILHA_COM_CURSISTAS)).json()
+    assert "Teste Servo 3: Cuidando da mãe" in corpo["continuam_ativos"]
+    assert "Teste Servo 3" not in corpo["servos_sem_pasta"]
+
+    conn = getConnection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM virada_ano WHERE ano = %s", (ANO,))
+            assert aplicar_virada(cursor, ANO)
+            cursor.execute("SELECT status FROM servo WHERE id_servo = %s", (servo3,))
+            assert cursor.fetchone() == ("Ativo",)
+    finally:
+        conn.rollback()
+        releaseConnection(conn)
+
+
+def test_excecao_substitui_o_ano(client, admin, sem_excecoes):
+    servo3 = id_do_servo("Teste Servo 3")
+    client.put("/pastas/sem-pasta", headers=admin,
+               json={"ano": ANO, "excecoes": [{"id_servo": servo3, "motivo": "Motivo"}]})
+    r = client.put("/pastas/sem-pasta", headers=admin, json={"ano": ANO, "excecoes": []})
+    assert r.status_code == 200
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM servo_excecao_sem_pasta WHERE ano = %s", (ANO,))
+        assert cursor.fetchone() == (0,)
+
+
+def test_excecao_exige_motivo(client, admin, sem_excecoes):
+    servo3 = id_do_servo("Teste Servo 3")
+    for motivo in ("", "   "):
+        r = client.put("/pastas/sem-pasta", headers=admin,
+                       json={"ano": ANO, "excecoes": [{"id_servo": servo3, "motivo": motivo}]})
+        assert r.status_code == 422, r.text
+
+
+def test_excecao_so_ano_atual_ou_seguinte(client, admin):
+    assert client.get(f"/pastas/sem-pasta?ano={ANO + 1}", headers=admin).status_code == 422
+    r = client.put("/pastas/sem-pasta", headers=admin, json={"ano": ANO - 2, "excecoes": []})
+    assert r.status_code == 422
+
+
+def test_excecao_so_admin_e_coordenacao_geral(client, headers, sem_excecoes):
+    for login in ("admin", "coordgeral"):
+        assert client.get("/pastas/sem-pasta", headers=headers(login)).status_code == 200, login
+    for login in ("servo", "formacao"):
+        assert client.get("/pastas/sem-pasta", headers=headers(login)).status_code == 403, login
+        r = client.put("/pastas/sem-pasta", headers=headers(login), json={"ano": ANO, "excecoes": []})
+        assert r.status_code == 403, login

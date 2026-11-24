@@ -44,6 +44,7 @@ export interface ImportacaoPastas {
   cursistas_sem_pasta: string[]; // deixam o movimento
   servos_sem_pasta: string[];    // ficam inativos
   sobem_apostolado?: string[];   // marcados para subir: sem pasta, mas não saem
+  continuam_ativos?: string[];   // sem pasta, com exceção no ano ("Nome: motivo")
 }
 
 export interface ArquivoEscolhido {
@@ -68,4 +69,35 @@ export function importarPastas(arquivo: ArquivoEscolhido, ano: number, confirmar
   form.append("ano", String(ano));
   form.append("confirmar", String(confirmar));
   return apiRequest<ImportacaoPastas>("/pastas/importar", { method: "POST", body: form });
+}
+
+// ── Exceção: servo sem pasta que continua ativo ──────────────────────────────
+// Depois de gravar as pastas do ano, quem ficou sem pasta no Pós-Encontro seria
+// inativado na virada; administrador e coordenação geral marcam quem continua
+// ativo, com o motivo (vale só para aquele ano).
+
+export interface ServoSemPasta {
+  id: number;
+  nome: string;
+  apelido?: string | null;
+  excecao: boolean;
+  motivo?: string | null;
+}
+
+export interface ServosSemPasta {
+  ano: number;
+  anos_permitidos: number[];
+  pastas_importadas: boolean; // sem as pastas do ano, a lista fica vazia
+  servos: ServoSemPasta[];
+}
+
+export function getServosSemPasta(ano?: number): Promise<ServosSemPasta> {
+  return apiRequest(ano ? `/pastas/sem-pasta?ano=${ano}` : "/pastas/sem-pasta");
+}
+
+export function marcarExcecoesSemPasta(ano: number, excecoes: { id_servo: number; motivo: string }[]) {
+  return apiRequest<{ message: string; marcados: number }>("/pastas/sem-pasta", {
+    method: "PUT",
+    body: JSON.stringify({ ano, excecoes }),
+  });
 }

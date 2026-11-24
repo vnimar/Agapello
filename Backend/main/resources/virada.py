@@ -5,7 +5,8 @@ Virada do ano: as pastas importadas em dezembro passam a valer em 1º de janeiro
   servo Aguardando sem pasta no Pós  → apagado (o cursista deixa o movimento)
   cursista do ano anterior sem pasta → 'concluido'
   marcado para subir ao apostolado   → área do apostolado (não é inativado)
-  servo Ativo sem pasta no Pós       → Inativo ("Sem pasta em <ano>")
+  servo Ativo sem pasta no Pós       → Inativo ("Sem pasta em <ano>"), a não ser
+                                       que tenha exceção no ano (servo_excecao_sem_pasta)
 
 Roda sozinha uma vez por ano (tabela virada_ano), na primeira requisição do dia
 em que já houver pastas do ano importadas. A importação das pastas do ano em
@@ -61,10 +62,12 @@ def aplicar_virada(cursor, ano: int, forcar: bool = False, registrado_por: Optio
     # Quem sobe para o apostolado não tem pasta do discipulado e não é inativado
     subir_para_apostolado(cursor, ano)
 
+    # Exceção marcada pelo administrador ou pela coordenação geral: continua ativo
     cursor.execute(f"""
         SELECT s.id_servo FROM servo s
         WHERE s.status = 'Ativo' AND s.area = 'discipulado' AND NOT {com_pasta}
-    """, (ano,))
+          AND NOT EXISTS (SELECT 1 FROM servo_excecao_sem_pasta e WHERE e.id_servo = s.id_servo AND e.ano = %s)
+    """, (ano, ano))
     inativados = [i for (i,) in cursor.fetchall()]
     for id_servo in inativados:
         cursor.execute("""
