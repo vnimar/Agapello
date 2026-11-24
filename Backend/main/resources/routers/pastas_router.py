@@ -299,6 +299,20 @@ def importar_pastas(
                     erros.append(f"{nome_servo[id_servo]} — {nome_pasta[id_pasta]} ({NOME_MOMENTO[momento]}): "
                                  f"{motivo}")
 
+            # Pasta só no Encontro (ex.: Cozinha) não conta: sem pasta no Pós, o servo
+            # fica inativo e o cursista deixa o movimento. Alerta para completar a planilha.
+            cursor.execute("""
+                SELECT s.nome, s.apelido, string_agg(DISTINCT p.nome, ', ' ORDER BY p.nome)
+                FROM servo_pasta sp JOIN servo s USING (id_servo) JOIN pasta p USING (id_pasta)
+                WHERE sp.ano = %s AND sp.momento = 'encontro'
+                  AND NOT EXISTS (SELECT 1 FROM servo_pasta x
+                                  WHERE x.id_servo = sp.id_servo AND x.ano = %s AND x.momento = 'pos')
+                GROUP BY s.id_servo, s.nome, s.apelido
+                ORDER BY COALESCE(s.apelido, s.nome), s.nome
+            """, (ano, ano))
+            falta_pos = [f"{com_apelido(n, a)}: só tem {pastas} no Encontro"
+                         for n, a, pastas in cursor.fetchall()]
+
             # O que a virada do ano vai fazer (ver resources/virada.py)
             tem_pos = "EXISTS (SELECT 1 FROM servo_pasta sp WHERE sp.id_servo = s.id_servo AND sp.ano = %s AND sp.momento = 'pos')"
             cursor.execute(f"""
@@ -374,7 +388,7 @@ def importar_pastas(
         ano=ano, message=message, gravados=total if gravar else 0, substituidos=substituidos, antigos=antigos,
         pastas=resultado, erros=erros, avisos=avisos,
         promovidos=promovidos, cursistas_sem_pasta=cursistas_sem_pasta, servos_sem_pasta=servos_sem_pasta,
-        sobem_apostolado=sobem_apostolado, continuam_ativos=continuam_ativos,
+        sobem_apostolado=sobem_apostolado, continuam_ativos=continuam_ativos, falta_pos=falta_pos,
     )
 
 

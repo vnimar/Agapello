@@ -45,6 +45,7 @@ class PastaImportResponse(BaseModel):
     servos_sem_pasta: list[str] = []     # ficam inativos
     sobem_apostolado: list[str] = []     # marcados para subir: sem pasta, mas não saem
     continuam_ativos: list[str] = []     # sem pasta, com exceção no ano ("Nome: motivo")
+    falta_pos: list[str] = []            # pasta só no Encontro: falta a do Pós ("Nome: só tem X no Encontro")
 
 
 # ── Exceção: servo sem pasta que continua ativo ──────────────────────────────

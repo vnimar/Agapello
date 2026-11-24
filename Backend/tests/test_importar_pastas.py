@@ -501,3 +501,13 @@ def test_excecao_so_admin_e_coordenacao_geral(client, headers, sem_excecoes):
         assert client.get("/pastas/sem-pasta", headers=headers(login)).status_code == 403, login
         r = client.put("/pastas/sem-pasta", headers=headers(login), json={"ano": ANO, "excecoes": []})
         assert r.status_code == 403, login
+
+
+def test_alerta_quem_so_tem_pasta_no_encontro(client, admin):
+    # Cozinha só existe no Encontro: sem pasta no Pós, a pessoa sairia na virada
+    corpo = enviar(client, admin, planilha([
+        {"funcao": "Música", "e": 1, "p": 1, "pc": ["Teste Servo 1"]},
+        {"funcao": "Cozinha", "e": 1, "ec": ["Teste Servo 2"], "em": ["Teste Servo 1"]},
+    ])).json()
+    assert corpo["falta_pos"] == ["Teste Servo 2: só tem Cozinha no Encontro"], corpo["falta_pos"]
+    assert "Teste Servo 2" in corpo["servos_sem_pasta"]

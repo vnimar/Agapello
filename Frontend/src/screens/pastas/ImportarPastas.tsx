@@ -227,6 +227,10 @@ export default function ImportarPastasScreen() {
               </View>
             )}
 
+            {/* Pasta só no Encontro não conta: sem a do Pós, sai na virada */}
+            <Lista titulo="Falta pasta no Pós-Encontro (sem ela, sai na virada)" nomes={previa.falta_pos}
+                   caixa={styles.caixaAviso} texto={styles.avisoText} />
+
             {previa.avisos.length > 0 && (
               <View style={[styles.caixa, styles.caixaAviso]}>
                 <Text style={[styles.caixaTitulo, styles.avisoText]}>Para conferir ({previa.avisos.length})</Text>

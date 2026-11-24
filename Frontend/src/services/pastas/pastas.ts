@@ -45,6 +45,7 @@ export interface ImportacaoPastas {
   servos_sem_pasta: string[];    // ficam inativos
   sobem_apostolado?: string[];   // marcados para subir: sem pasta, mas não saem
   continuam_ativos?: string[];   // sem pasta, com exceção no ano ("Nome: motivo")
+  falta_pos?: string[];          // pasta só no Encontro: falta a do Pós
 }
 
 export interface ArquivoEscolhido {
